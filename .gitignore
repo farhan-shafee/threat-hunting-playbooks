@@ -1,0 +1,12 @@
+# Python
+__pycache__/
+*.pyc
+
+# OS / Editor
+.DS_Store
+.vscode/
+.idea/
+
+# Local artifacts
+*.log
+.tmp/

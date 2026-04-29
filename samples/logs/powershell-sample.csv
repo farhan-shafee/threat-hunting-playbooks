@@ -1,0 +1,4 @@
+Timestamp,DeviceName,AccountName,FileName,ProcessCommandLine,InitiatingProcessFileName
+2026-04-20T10:21:00Z,WKSTN-22,jdoe,powershell.exe,"powershell -enc SQBFAFgA...",winword.exe
+2026-04-20T10:24:00Z,WKSTN-22,jdoe,powershell.exe,"powershell Get-Process",explorer.exe
+2026-04-20T11:02:14Z,SRV-07,svc_patch,powershell.exe,"powershell -file C:\Scripts\Patch.ps1",services.exe
