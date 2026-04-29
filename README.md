@@ -1,77 +1,88 @@
 # Threat Hunting Portfolio Lab
 
-This repository is a **portfolio lab** for demonstrating practical threat hunting and junior detection engineering skills.
+A hands-on, interview-ready lab that demonstrates how I run structured threat hunts and document analyst decisions.
 
-It is intentionally scoped for learning, interview discussion, and repeatable practice — **not a claim of production SOC ownership or real incident response authority**.
+> This repo is a **portfolio lab**. It is intentionally educational and does **not** claim production SOC authority, customer incident ownership, or enterprise-wide detection coverage.
 
-## Purpose
+## Why this exists
 
-- Show how I structure hunts from hypothesis to escalation decision.
-- Demonstrate SIEM query writing (primarily KQL-style examples).
-- Document triage workflows, false-positive handling, and tuning decisions.
-- Provide reusable examples for SOC Analyst / Security Analyst / Threat Hunter roles.
+I built this lab to show practical capability for SOC Analyst / Security Analyst / Threat Hunter / Junior Detection Engineer roles:
+- turning attacker behavior into hunt hypotheses
+- writing and tuning SIEM queries
+- triaging findings with evidence-based escalation criteria
+- documenting outcomes in concise hunt summaries
 
-## Repository Structure
+## Repository map
 
 ```text
-hunts/                  # Hunt playbooks (host, identity, network, cloud)
-docs/                   # Methodology and lab assumptions
-samples/logs/           # Small synthetic sample telemetry for practice
+hunts/                  # Primary hunt playbooks (6 core scenarios)
+docs/                   # Methodology, assumptions, and reference guidance
+samples/logs/           # Synthetic telemetry snippets for practice
 samples/reports/        # Example completed hunt summaries
-queries/                # Query snippets and reusable building blocks
-scripts/                # Validation/checklist scripts
-.github/workflows/      # CI checks
+queries/                # Reusable KQL snippets
+scripts/                # Validation checks used locally and in CI
+.github/workflows/      # CI workflow
+legacy-playbooks/       # (planned) migration target for older markdown content
 ```
 
-## Hunt Workflow Used in This Lab
+## Core hunt playbooks
 
-1. Define a hypothesis tied to attacker behavior.
-2. Confirm required telemetry and field availability.
-3. Run initial query and collect candidate findings.
-4. Investigate process/user/network context.
-5. Reduce noise with allowlists, thresholds, and time windows.
-6. Decide: close as benign, monitor, or escalate.
-7. Record findings and tuning updates.
+- Suspicious PowerShell → `hunts/suspicious-powershell.md`
+- Unusual authentication behavior → `hunts/unusual-authentication-behavior.md`
+- Lateral movement → `hunts/lateral-movement.md`
+- Data exfiltration indicators → `hunts/data-exfiltration-indicators.md`
+- Cloud account compromise → `hunts/cloud-account-compromise.md`
+- Persistence mechanisms → `hunts/persistence-mechanisms.md`
 
-See `docs/threat-hunting-methodology.md` for full details.
-
-## Included Hunt Playbooks
-
-- Suspicious PowerShell (`hunts/suspicious-powershell.md`)
-- Unusual Authentication Behavior (`hunts/unusual-authentication-behavior.md`)
-- Lateral Movement (`hunts/lateral-movement.md`)
-- Data Exfiltration Indicators (`hunts/data-exfiltration-indicators.md`)
-- Cloud Account Compromise (`hunts/cloud-account-compromise.md`)
-- Persistence Mechanisms (`hunts/persistence-mechanisms.md`)
-
-## Sample Outputs
-
-This lab includes:
-- Synthetic sample logs in `samples/logs/`.
-- Example completed hunt summaries in `samples/reports/`.
-
-These are fabricated training artifacts and do not represent real customer/company incidents.
-
-## Skills Demonstrated
-
-- Threat hypothesis development
-- KQL/SIEM query construction
-- Host, network, identity, and cloud triage
+Every playbook includes:
+- hypothesis + objective
+- required data sources
+- SIEM query examples
+- expected results
+- investigation steps
+- false-positive guidance
+- escalation criteria
 - MITRE ATT&CK mapping
-- Detection tuning and false-positive reduction
-- Investigation documentation
+- tuning notes
 
-## Limitations
+## Workflow used in this lab
 
-- Queries are generalized and may require schema changes per SIEM/EDR.
-- No claim of production coverage completeness.
-- Sample logs are synthetic and not full-fidelity enterprise telemetry.
-- ATT&CK mappings are analyst interpretations and should be validated in each environment.
+1. Define a falsifiable hypothesis.
+2. Verify telemetry prerequisites.
+3. Run initial query and collect candidate findings.
+4. Enrich with process/user/network/cloud context.
+5. Decide benign vs suspicious using explicit criteria.
+6. Tune logic to reduce recurring false positives.
+7. Document hunt summary and follow-up actions.
 
-## Quick Start
+See `docs/threat-hunting-methodology.md`.
+
+## Sample outputs included
+
+- synthetic log snippets in `samples/logs/`
+- completed hunt summaries in `samples/reports/`
+
+These artifacts are synthetic by design and are provided to demonstrate analysis workflow, not real incidents.
+
+## Skills demonstrated
+
+- SIEM query authoring (KQL-style)
+- endpoint + identity + network + cloud triage
+- ATT&CK-based behavior mapping
+- practical false-positive reduction
+- written communication for investigation outcomes
+
+## Limitations and honesty notes
+
+- Queries are generalized and require adaptation to your schema/table names.
+- Thresholds are starter values, not universal production thresholds.
+- Sample data is intentionally small and synthetic.
+- This repository avoids fabricated companies, breaches, threat intel claims, and fake impact metrics.
+
+## Quickstart
 
 ```bash
 make validate
 ```
 
-Runs markdown and playbook quality checks used by CI.
+This runs markdown quality checks for hunt playbook structure and query code-block presence.

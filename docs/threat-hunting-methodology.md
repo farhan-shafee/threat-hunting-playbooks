@@ -1,28 +1,45 @@
 # Threat Hunting Methodology (Portfolio Lab)
 
 ## Scope
-This methodology is designed for a lab portfolio and interview discussion, not formal production SOC governance.
+This methodology supports portfolio demonstration and interview discussion. It is not a substitute for organization-specific incident response policy.
 
-## Hunt Lifecycle
-1. **Form hypothesis** based on ATT&CK behaviors and likely attacker objectives.
-2. **Confirm telemetry**: required tables/fields and retention.
-3. **Initial query run** to find suspicious candidates.
-4. **Context enrichment**: user, host criticality, parent process, geo, reputation.
-5. **Triage decision**: benign / suspicious / escalate.
-6. **Tune detection**: thresholds, allowlists, suppression logic.
-7. **Document outcomes** in hunt summary reports.
+## Hunt lifecycle
 
-## Analyst Principles
-- Prefer reproducible logic over one-off intuition.
-- Keep assumptions explicit.
-- Record false-positive patterns.
-- Avoid overclaiming confidence where telemetry is incomplete.
+### 1) Hypothesis
+State a behavior-focused, testable hypothesis.
 
-## Evidence Handling (Lab)
-- Use synthetic or sanitized sample data only.
-- Do not include sensitive corporate telemetry.
+### 2) Telemetry readiness
+Confirm required tables and fields are available before running hunts.
 
-## Continuous Improvement
-- Update playbooks when schema changes.
-- Version query adjustments in git history.
-- Add tests/checklists for quality gates.
+### 3) Initial detection pass
+Run broad logic to identify candidate events.
+
+### 4) Investigation and enrichment
+Attach context: user role, host criticality, parent process lineage, destination risk, and change-control evidence.
+
+### 5) Decisioning
+Classify each candidate as:
+- benign expected activity
+- suspicious, monitor
+- escalate for incident handling
+
+### 6) Tuning
+Reduce repeat noise with allowlists, entity baselines, and threshold/window adjustments.
+
+### 7) Documentation
+Record what was found, what was escalated, and what changed in the detection logic.
+
+## Data quality checklist
+Before trusting results:
+- Timestamp normalization confirmed (UTC preferred)
+- Key entity fields present (host/user/IP/process)
+- Log gaps or ingestion delays noted
+- Retention window sufficient for hunt objective
+
+## Escalation philosophy
+Escalate when multiple independent risk signals converge (for example: suspicious auth + remote execution + anomalous egress), or when impact potential is high even from a single signal on a critical asset.
+
+## Portfolio integrity rules
+- No fake client names or breach claims.
+- No fabricated “production metrics” presented as real outcomes.
+- Label synthetic examples clearly.
