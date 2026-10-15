@@ -29,6 +29,8 @@ jobs:
         run: python scripts/validate_playbooks.py
       - name: Verify canonical KQL in all six core playbooks
         run: python -B scripts/sync_kql_examples.py --check
+      - name: Reproduce captured ADX synthetic KQL and assertions
+        run: python -B scripts/build_adx_synthetic_queries.py --check
       - name: Validate KQL syntax and curated vendor schemas
         shell: pwsh
         run: ./scripts/validate_kql_schemas.ps1

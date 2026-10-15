@@ -1,0 +1,31 @@
+// GENERATED from the captured 2026-10-15 synthetic ADX execution.
+// Read-only in-memory datatable; NO Sentinel/Defender tenant execution.
+// Never treat this replay as proof of real sensor or connector coverage.
+let LabSyntheticAnchor = bin(now() - 2h, 15m);
+let DeviceProcessEvents = datatable(FixtureMinute:int, DeviceName:string, AccountName:string, FileName:string, ProcessCommandLine:string, InitiatingProcessFileName:string, ReportId:long)
+[
+    13, "SRV-1", "analyst", "psexec.exe", "psexec.exe \\\\examplecmd", "cmd.exe", 201,
+    15, "SRV-2", "analyst", "wmic.exe", "wmic /node:SRV-3 process get name", "cmd.exe", 202,
+    17, "SRV-3", "admin", "powershell.exe", "powershell.exe -NoProfile Write-Output clean", "explorer.exe", 203,
+    20, "SRV-4", "user", "cmd.exe", "cmd.exe /c psexec.exe", "explorer.exe", 204
+]
+| extend Timestamp = LabSyntheticAnchor + FixtureMinute * 1m
+| project-away FixtureMinute;
+// DEFENDER XDR / DeviceProcessEvents: remote-tool invocation candidates.
+// NOT a validated connection -> logon -> execution correlation; this table
+// lacks reliable destination-host/session attribution for that chain.
+DeviceProcessEvents
+| where Timestamp >= ago(1d)
+| where isnotempty(ProcessCommandLine)
+| where FileName in~ ("psexec.exe", "wmic.exe", "schtasks.exe",
+    "powershell.exe", "pwsh.exe")
+| extend CommandLower = tolower(ProcessCommandLine)
+| where FileName =~ "psexec.exe"
+    or CommandLower contains "/node:"
+    or CommandLower contains "\\\\"
+    or CommandLower contains "/s "
+    or CommandLower contains "invoke-command"
+    or CommandLower contains "enter-pssession"
+| project Timestamp, DeviceName, AccountName, FileName,
+    ProcessCommandLine, InitiatingProcessFileName, ReportId
+| order by Timestamp desc

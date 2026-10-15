@@ -24,6 +24,10 @@ This project distinguishes three types of artifacts and does **not** claim parit
 | DNS tunneling | Optional normalized `DnsEvents` | **No default universal schema is supplied** | **Blocked** until a defined connector/column map |
 | JA3, session duration, HTTP body sizes | Separate Zeek/TLS/proxy sensor | Not default `DeviceNetworkEvents` columns | **Blocked** without separate source |
 
+## ADX synthetic execution status
+
+The seven native-table KQL **expressions** were run against ephemeral inline synthetic datatables in an Azure Data Explorer free cluster on 2026-10-15, returning the expected reviewed candidate sets. Exact executed query text and human-transcribed counts are retained in [the ADX evidence documentation](ADX_SYNTHETIC_EXECUTION.md). Source-dependent runtime behavior in **real Sentinel or Defender security telemetry remains unverified**. The seven corrected generated assertion queries were also executed in Azure Data Explorer, each returning PASS with matching event identities; an intentionally wrong expected identity returned FAIL. Results are bound to the [manual assertion execution receipt](../evidence/adx-free-2026-10-15/assertion-runtime-receipt.json). This is not native Sentinel/Defender tenant validation.
+
 ## Reproducible curated KQL check
 
 The seven canonical KQL files at `queries/schema-reviewed/` are parsed and statically type-checked by Microsoft's `Kusto.Language` 12.4.1 using manually curated minimal table definitions from the official references. `scripts/validate_kql_schemas.ps1` fails on parser/semantic errors and `scripts/sync_kql_examples.py --check` fails if a core playbook's KQL diverges. **These checks do not execute a query against Microsoft Sentinel or Defender XDR.** See [KQL static validation](KQL_STATIC_VALIDATION.md), and the [live tenant gate](LIVE_KQL_VALIDATION_GATE.md) for the remaining evidence requirements.

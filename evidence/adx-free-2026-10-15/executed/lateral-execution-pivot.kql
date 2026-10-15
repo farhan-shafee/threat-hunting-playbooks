@@ -1,0 +1,26 @@
+// Synthetic in-memory ADX validation; no saved tables.
+let DeviceProcessEvents = datatable(Timestamp:datetime, DeviceName:string, AccountName:string, FileName:string, ProcessCommandLine:string, InitiatingProcessFileName:string, ReportId:long)
+[
+    datetime(2026-10-15T04:43:00Z), "SRV-1", "analyst", "psexec.exe", "psexec.exe \\\\examplecmd", "cmd.exe", 201,
+    datetime(2026-10-15T04:45:00Z), "SRV-2", "analyst", "wmic.exe", "wmic /node:SRV-3 process get name", "cmd.exe", 202,
+    datetime(2026-10-15T04:47:00Z), "SRV-3", "admin", "powershell.exe", "powershell.exe -NoProfile Write-Output clean", "explorer.exe", 203,
+    datetime(2026-10-15T04:50:00Z), "SRV-4", "user", "cmd.exe", "cmd.exe /c psexec.exe", "explorer.exe", 204
+];
+// DEFENDER XDR / DeviceProcessEvents: remote-tool invocation candidates.
+// NOT a validated connection -> logon -> execution correlation; this table
+// lacks reliable destination-host/session attribution for that chain.
+DeviceProcessEvents
+| where Timestamp >= ago(1d)
+| where isnotempty(ProcessCommandLine)
+| where FileName in~ ("psexec.exe", "wmic.exe", "schtasks.exe",
+    "powershell.exe", "pwsh.exe")
+| extend CommandLower = tolower(ProcessCommandLine)
+| where FileName =~ "psexec.exe"
+    or CommandLower contains "/node:"
+    or CommandLower contains "\\\\"
+    or CommandLower contains "/s "
+    or CommandLower contains "invoke-command"
+    or CommandLower contains "enter-pssession"
+| project Timestamp, DeviceName, AccountName, FileName,
+    ProcessCommandLine, InitiatingProcessFileName, ReportId
+| order by Timestamp desc

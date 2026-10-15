@@ -1,6 +1,6 @@
 # Live Sentinel / Defender query execution gate
 
-**Status: BLOCKED — no specified authorized tenant or workspace and no service-side query results.**
+**Native Sentinel/Defender validation status: BLOCKED — no specified authorized Sentinel/XDR tenant with native security connectors.** Separately, Azure Data Explorer free-cluster *synthetic `datatable`* execution succeeded for seven queries; this is documented in [ADX_SYNTHETIC_EXECUTION.md](ADX_SYNTHETIC_EXECUTION.md) and is not a substitute for real security telemetry.
 
 All seven source-reviewed KQL files pass syntax and curated-source-schema analysis with Microsoft's official Kusto.Language parser. **This is not enough to claim any query works in an actual Microsoft Sentinel or Defender XDR environment.**
 

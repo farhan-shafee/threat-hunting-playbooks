@@ -1,0 +1,39 @@
+// GENERATED from the captured 2026-10-15 synthetic ADX execution.
+// Read-only in-memory datatable; NO Sentinel/Defender tenant execution.
+// Never treat this replay as proof of real sensor or connector coverage.
+let LabSyntheticAnchor = bin(now() - 2h, 60m);
+let CommonSecurityLog = datatable(FixtureMinute:int, SourceIP:string, DestinationIP:string, SentBytes:long)
+[
+    10, "192.0.2.25", "203.0.113.8", 250000000,
+    20, "192.0.2.25", "203.0.113.8", 300000000,
+    30, "192.0.2.26", "203.0.113.7", 100000000,
+    35, "192.0.2.27", "203.0.113.6", -1
+]
+| extend TimeGenerated = LabSyntheticAnchor + FixtureMinute * 1m
+| project-away FixtureMinute;
+let LabSyntheticResults = materialize(
+// SENTINEL / CommonSecurityLog: connector-dependent sent-byte volume pivot.
+// Hourly calendar bins != sliding 60-minute offline rule. No vendor-neutral
+// dedup, cumulative-to-delta conversion, NAT attribution, outbound-direction
+// verification or external-destination/approval proof is supplied here.
+CommonSecurityLog
+| where TimeGenerated >= ago(1d)
+| where isnotempty(SourceIP) and isnotempty(DestinationIP)
+| where isnotnull(SentBytes) and SentBytes >= 0
+| summarize ObservedSentBytes = sum(SentBytes), SourceEvents = count(),
+    FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated)
+    by SourceIP, DestinationIP, WindowStart = bin(TimeGenerated, 1h)
+| where ObservedSentBytes >= 500000000
+| project WindowStart, SourceIP, DestinationIP, ObservedSentBytes,
+    SourceEvents, FirstSeen, LastSeen
+| order by ObservedSentBytes desc
+);
+let LabObserved = toscalar(LabSyntheticResults | count);
+let LabMatched = toscalar(LabSyntheticResults | where SourceIP == "192.0.2.25" and DestinationIP == "203.0.113.8" and ObservedSentBytes == 550000000 and SourceEvents == 2 | count);
+let LabActualIds = toscalar(LabSyntheticResults | summarize Ids=make_set(SourceIP));
+let LabExpectedIds = dynamic(["192.0.2.25"]);
+let LabIdsEqual = array_length(set_difference(LabActualIds, LabExpectedIds)) == 0
+  and array_length(set_difference(LabExpectedIds, LabActualIds)) == 0;
+print Scenario="egress-byte-volume", Expected=1, Observed=LabObserved, Matched=LabMatched,
+  IdentityMatch=LabIdsEqual,
+  Verdict=iff(LabObserved == 1 and LabMatched == 1 and LabIdsEqual, "PASS", "FAIL")

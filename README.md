@@ -2,7 +2,7 @@
 
 **Security engineering portfolio lab** that turns six hypothesis-driven hunts into repeatable synthetic telemetry evaluations, independent expected outcomes, and auditable reports.
 
-> **Scope is explicitly offline and synthetic.** The Python evaluator is **not** a KQL interpreter, EDR agent, SIEM connector, confirmed-incident classifier, or real-world detection efficacy study. No external tenant, production telemetry, credentials, containment, malware execution, or customer investigations are involved.
+> **Scope is synthetic and non-destructive.** The six Python detectors run only on local synthetic CSVs and are **not** SIEM/EDR integrations or evidence of real-world detection efficacy. The separate Azure Data Explorer KQL validation described below used temporary synthetic data, **not** Microsoft Sentinel/Defender tenant telemetry. No customer investigations, real incident claims, credential collection, malware execution, or containment operations are involved.
 
 ## Capability and evidence matrix
 
@@ -15,7 +15,7 @@
 | **Cloud compromise** | Successful unapproved privileged changes and access-key creation, excluding failed and pending operations | [Reproduced cloud report](samples/reports/reproduced/cloud-v1.md) |
 | **Network egress** | Deduplicated high-volume outbound transfers, controlled byte-counter semantics, 60-minute rolling window | [Reproduced egress report](samples/reports/reproduced/egress-v1.md) |
 
-**Evidence status:** All six Python algorithms operate on synthetic CSV fixtures and have local regression tests. Separately, **seven curated KQL candidates across the six core playbooks pass Microsoft's official Kusto.Language syntax and static semantic analyzer against documented native schema subsets**. These are *not* executed against a tenant, do not establish production detection efficacy, and are **not equivalent implementations of the offline Python rules**. See [KQL static validation](docs/KQL_STATIC_VALIDATION.md) and the [live tenant gate](docs/LIVE_KQL_VALIDATION_GATE.md).
+**Evidence status:** All six Python algorithms operate on synthetic CSV fixtures with regression tests. Separately, **seven canonical KQL candidates passed Microsoft's Kusto.Language syntax and static semantic checks against curated vendor schemas**. All seven were also **executed successfully against temporary `datatable` fixtures in an Azure Data Explorer free cluster on October 15, 2026**, with observed results captured in a clearly labeled, human-transcribed [synthetic-execution receipt](evidence/adx-free-2026-10-15/receipt.json). A separate [replay harness](docs/ADX_SYNTHETIC_EXECUTION.md) generates fresh-time queries and PASS/FAIL checks. **All seven corrected assertions were executed in Azure Data Explorer and returned PASS; a deliberately incorrect event identity returned FAIL**. The exact generated query hashes and manually observed results are recorded in the [assertion runtime receipt](evidence/adx-free-2026-10-15/assertion-runtime-receipt.json). **No Sentinel/Defender tenant-side query execution or real-world detection effectiveness has been established**, and these KQL pivots are not equivalent to the offline Python detectors. See [KQL static validation](docs/KQL_STATIC_VALIDATION.md) and the [live tenant gate](docs/LIVE_KQL_VALIDATION_GATE.md).
 
 ## Reproduce all six offline cases
 
@@ -27,6 +27,7 @@ python -B -m unittest discover -s tests -v
 python -B scripts/validate_playbooks.py
 python -B scripts/render_reports.py --check
 python -B scripts/sync_kql_examples.py --check
+python -B scripts/build_adx_synthetic_queries.py --check
 ```
 
 Run the additional Microsoft vendor-parser check with `pwsh -NoProfile -File scripts/validate_kql_schemas.ps1`. This uses only local KQL source files and curated official schema definitions; it does not authenticate to a tenant.
@@ -49,7 +50,7 @@ python -B scripts/render_reports.py
 python -B scripts/render_reports.py --check
 ```
 
-CI runs tests on **Windows and Linux with Python 3.11 and 3.13**, compiles code, validates Markdown structure, checks exact canonical KQL snippet synchronization, runs Microsoft Kusto.Language 12.4.1 schema-aware syntax/semantic checks, and verifies generated reports against synthetic CSVs. The parser package is fetched with a pinned SHA-256 and never runs real tenant queries. Branch protection requires the existing four matrix checks and resolved review threads before merging.
+CI runs tests on **Windows and Linux with Python 3.11 and 3.13**, compiles code, validates Markdown structure, checks canonical KQL synchronization, verifies all seven exact Azure Data Explorer execution-capture hashes, reproduces seven fresh-time synthetic queries and seven assertion queries, statically analyzes all 21 KQL files with Microsoft Kusto.Language 12.4.1, and checks the six offline evidence reports. The parser package is fetched with a pinned SHA-256 and never runs real tenant queries. Branch protection requires the existing four matrix checks and resolved review threads before merging.
 
 ## What the evaluator actually records
 
@@ -73,7 +74,10 @@ CI runs tests on **Windows and Linux with Python 3.11 and 3.13**, compiles code,
 | [`tests/`](tests/) | Regression, negative, boundary, provenance, and malformed-input tests |
 | [`tests/expected/`](tests/expected/) | Independently authored expected outcomes, not generated by the runtime |
 | [`hunts/`](hunts/) | Six hypothesis/analyst playbooks containing source-reviewed but tenant-unexecuted KQL candidates |
-| [`queries/schema-reviewed/`](queries/schema-reviewed/) | Seven canonical KQL queries and source-schema manifest; no tenant execution |
+| [`queries/schema-reviewed/`](queries/schema-reviewed/) | Seven canonical KQL queries and native Microsoft table-schema manifest |
+| [`queries/adx-validation/generated/`](queries/adx-validation/generated/) | Seven timestamp-reanchored synthetic KQL replays and seven PASS/FAIL assertion queries |
+| [`evidence/adx-free-2026-10-15/`](evidence/adx-free-2026-10-15/) | Exact seven executed synthetic KQL snapshots and manually transcribed outcome receipt |
+| [`docs/ADX_SYNTHETIC_EXECUTION.md`](docs/ADX_SYNTHETIC_EXECUTION.md) | Reproduce the Azure Data Explorer synthetic execution and understand evidence limits |
 | [`docs/KQL_STATIC_VALIDATION.md`](docs/KQL_STATIC_VALIDATION.md) | Microsoft Kusto.Language static syntax/semantic review evidence and scope |
 | [`docs/LIVE_KQL_VALIDATION_GATE.md`](docs/LIVE_KQL_VALIDATION_GATE.md) | The remaining read-only authorized tenant/connector execution requirements |
 | [`cloud/`](cloud/), [`windows/`](windows/), [`network/`](network/), [`queries/`](queries/) | Additional historical, illustrative query references |

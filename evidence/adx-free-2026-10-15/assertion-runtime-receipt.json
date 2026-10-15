@@ -1,0 +1,109 @@
+{
+  "receipt_version": "1.0",
+  "observed_date_utc": "2026-10-15",
+  "observed_time_window_utc": "15:43-15:45 approximate, taken from Azure Data Explorer GUI result headers",
+  "environment": "Azure Data Explorer FREE cluster ThreatHuntingLab / SecurityLab",
+  "evidence_type": "Human-inspected query-editor result grids; no ADX API export or signed receipt",
+  "status": "SEVEN_ASSERTION_QUERIES_GUI_EXECUTED_PASS",
+  "scenarios": [
+    {
+      "scenario": "auth-failure-success",
+      "assertion_path": "queries/adx-validation/generated/auth-failure-success.assert.kql",
+      "assertion_sha256": "dc7f03fbf1bc9df4831bc07ab9211c0bf0e549ca66747adf0451684a02fdc031",
+      "expected": 1,
+      "observed": 1,
+      "matched": 1,
+      "identity_match": true,
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "auth-spray",
+      "assertion_path": "queries/adx-validation/generated/auth-spray.assert.kql",
+      "assertion_sha256": "fbc57025c7b7dbab88252b339863674e49b8bd5e10c5e2e11ae2eb2c9ca97c0c",
+      "expected": 1,
+      "observed": 1,
+      "matched": 1,
+      "identity_match": true,
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "cloud-entra-changes",
+      "assertion_path": "queries/adx-validation/generated/cloud-entra-changes.assert.kql",
+      "assertion_sha256": "14cb8cb8d3118e19f2a7f76259335eade60deeeb0ff94493c5aa427d62e65bff",
+      "expected": 3,
+      "observed": 3,
+      "matched": 3,
+      "identity_match": true,
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "egress-byte-volume",
+      "assertion_path": "queries/adx-validation/generated/egress-byte-volume.assert.kql",
+      "assertion_sha256": "f508b8ec683cd850f1df35a763b0128fe284b6ede411f623251e8b029e67c8a4",
+      "expected": 1,
+      "observed": 1,
+      "matched": 1,
+      "identity_match": true,
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "lateral-execution-pivot",
+      "assertion_path": "queries/adx-validation/generated/lateral-execution-pivot.assert.kql",
+      "assertion_sha256": "5a7952b5cea8dd9d606bba7e9db7766830111df7578dad79b5c976d7cdd58b78",
+      "expected": 2,
+      "observed": 2,
+      "matched": 2,
+      "identity_match": true,
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "persistence-autoruns",
+      "assertion_path": "queries/adx-validation/generated/persistence-autoruns.assert.kql",
+      "assertion_sha256": "22e970f2ab5ec4024e2c84b535c35def407e3a0057ea1acb27e2dd377d9b033a",
+      "expected": 2,
+      "observed": 2,
+      "matched": 2,
+      "identity_match": true,
+      "verdict": "PASS"
+    },
+    {
+      "scenario": "powershell-execution",
+      "assertion_path": "queries/adx-validation/generated/powershell-execution.assert.kql",
+      "assertion_sha256": "b7f13c7e5e632780aea44819944535541d835525cd2e82f369fce4a2fa55b7a8",
+      "expected": 2,
+      "observed": 2,
+      "matched": 2,
+      "identity_match": true,
+      "verdict": "PASS"
+    }
+  ],
+  "negative_control": {
+    "source_assertion": "auth-failure-success.assert.kql",
+    "change_to_expected_identity_only": "Replace let LabExpectedIds = dynamic([\"a-ok\"]); with let LabExpectedIds = dynamic([\"intentionally-wrong-event\"]);",
+    "expected": 1,
+    "observed": 1,
+    "matched": 1,
+    "identity_match": false,
+    "verdict": "FAIL",
+    "source_file_committed": false,
+    "reason": "Intentionally altered, temporary one-off negative KQL; the committed positive assertion is unchanged."
+  },
+  "runtime_fixes_verified": [
+    "Removed set_equals and instead compared both directional set_difference arrays using array_length == 0.",
+    "Replaced leading-double-underscore KQL let identifiers with nonreserved Lab... identifiers."
+  ],
+  "scope": {
+    "azure_data_explorer_synthetic_datatable_execution": true,
+    "sentinel_tenant_execution": false,
+    "defender_xdr_tenant_execution": false,
+    "persistent_table_or_log_ingestion": false,
+    "azure_billing_or_subscription_change": false,
+    "real_incident_detection_metrics": false
+  },
+  "notes": [
+    "The reported verdicts are manual transcriptions from graphical query results, not cryptographically signed service exports.",
+    "The hashes bind these observations to the exact generated KQL checked in the October 15 interactive session.",
+    "Future edits that change a generated assertion hash require new runtime evidence before claiming that revision was cloud-executed.",
+    "Success with in-memory synthetic tables does not establish parity with Defender/Sentinel native telemetry."
+  ]
+}

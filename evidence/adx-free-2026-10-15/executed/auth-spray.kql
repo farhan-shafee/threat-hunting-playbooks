@@ -1,0 +1,35 @@
+// Synthetic in-memory ADX validation; no saved tables.
+let SigninLogs = datatable(TimeGenerated:datetime, Id:string, UserPrincipalName:string, IPAddress:string, ResultType:string, IsInteractive:bool)
+[
+    datetime(2026-10-15T04:31:00Z), "sp-0", "a@lab.local", "192.0.2.80", "50126", true,
+    datetime(2026-10-15T04:32:00Z), "sp-1", "b@lab.local", "192.0.2.80", "50126", true,
+    datetime(2026-10-15T04:33:00Z), "sp-2", "c@lab.local", "192.0.2.80", "50126", true,
+    datetime(2026-10-15T04:34:00Z), "sp-3", "a@lab.local", "192.0.2.80", "50126", true,
+    datetime(2026-10-15T04:35:00Z), "sp-4", "b@lab.local", "192.0.2.80", "50126", true,
+    datetime(2026-10-15T04:36:00Z), "sp-5", "c@lab.local", "192.0.2.80", "50126", true,
+    datetime(2026-10-15T04:31:00Z), "sp-0", "a@lab.local", "192.0.2.80", "50126", true,
+    datetime(2026-10-15T04:31:00Z), "other-0", "a@lab.local", "192.0.2.81", "50126", true,
+    datetime(2026-10-15T04:32:00Z), "other-1", "a@lab.local", "192.0.2.81", "50126", true,
+    datetime(2026-10-15T04:33:00Z), "other-2", "a@lab.local", "192.0.2.81", "50126", true,
+    datetime(2026-10-15T04:34:00Z), "other-3", "a@lab.local", "192.0.2.81", "50126", true,
+    datetime(2026-10-15T04:35:00Z), "other-4", "a@lab.local", "192.0.2.81", "50126", true
+];
+// SENTINEL / SigninLogs: fixed 15-minute BIN password-spray candidate.
+// Bin boundary misses are possible; this is NOT a sliding 15-minute window.
+// Only ResultType=50126 is counted; service-principal sign-ins are excluded.
+SigninLogs
+| where TimeGenerated >= ago(1d)
+| where IsInteractive == true
+| where tostring(ResultType) == "50126"
+| where isnotempty(Id) and isnotempty(UserPrincipalName) and isnotempty(IPAddress)
+| project EventTime = TimeGenerated, SigninId = Id,
+    UserKey = tolower(UserPrincipalName), IPAddress
+| summarize arg_max(EventTime, *) by SigninId
+| summarize FailureEvents = count(), DistinctUsers = count_distinct(UserKey),
+    FirstSeen = min(EventTime), LastSeen = max(EventTime),
+    SampleIds = make_set(SigninId, 32)
+    by IPAddress, WindowStart = bin(EventTime, 15m)
+| where FailureEvents >= 6 and DistinctUsers >= 3
+| project WindowStart, IPAddress, FailureEvents, DistinctUsers,
+    FirstSeen, LastSeen, SampleIds
+| order by WindowStart desc

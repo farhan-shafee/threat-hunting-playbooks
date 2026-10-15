@@ -10,7 +10,7 @@
 - Analysis: `KustoCode.ParseAndAnalyze(query, globals)` with in-memory `DatabaseSymbol` and `TableSymbol` objects. `GetDiagnostics()` is checked for errors.
 - Result: **seven queries with zero syntax or static-semantic diagnostics**, using only the curated field subsets. The protected CI matrix repeats these checks.
 - Companion check: `python -B scripts/sync_kql_examples.py --check` verifies that all six Markdown playbooks contain the canonical query text exactly.
-- **Tenant execution: NOT RUN.** No authorized Sentinel workspace, Defender XDR tenant, connector and permission review, or actual query-output receipt has been provided. Passing CI must not be interpreted as live validation.
+- **Native Sentinel and Defender tenant execution: NOT RUN.** No tenant connector/permission review or native security telemetry is present. Separately, **seven candidate queries were successfully executed on October 15, 2026 in Azure Data Explorer using temporary synthetic `datatable` fixtures**. The observed results are in the [ADX synthetic execution receipt](../evidence/adx-free-2026-10-15/receipt.json) and the [replay guide](ADX_SYNTHETIC_EXECUTION.md). These do NOT validate production SIEM/XDR operation. Passing CI must not be interpreted as live tenant validation.
 
 ## Query-by-query scope
 
@@ -46,6 +46,10 @@ pwsh -NoProfile -File scripts/validate_kql_schemas.ps1
 ```
 
 The PowerShell verifier retrieves the SHA-256-verified Microsoft NuGet `.nupkg` package (or accepts `-PackageArchivePath` pointing to a `.nupkg` or renamed `.zip`), extracts it using .NET `ZipFile` without extension assumptions, creates source table schemas in memory, parses and statically analyzes all seven queries, and fails on diagnostics or missing required fields. It never authenticates to Sentinel/Defender.
+
+## ADX synthetic replay extension
+
+A separate [human-observed October 2026 ADX synthetic execution receipt](ADX_SYNTHETIC_EXECUTION.md) preserves the exact seven inline datatable queries and their manually checked result grids. The replay tool rebuilds **seven fresh-time KQL samples plus seven PASS/FAIL assertion queries**, with SHA-256 capture integrity and exact canonical KQL synchronization. Microsoft's Kusto.Language parser now statically checks all **21** KQL texts (7 originals, 14 derived) in CI. **The corrected seven assertion queries were also executed against inline synthetic datatables in Azure Data Explorer on October 15, 2026 and returned PASS; an intentionally wrong identity returned FAIL.** The [manual runtime receipt](../evidence/adx-free-2026-10-15/assertion-runtime-receipt.json) binds those observations to exact assertion-query hashes. This is **not** a native Sentinel/Defender tenant validation or signed service export.
 
 ## What remains blocked
 
