@@ -32,7 +32,7 @@ $cache = Join-Path ([System.IO.Path]::GetTempPath()) ('threat-hunt-kql-' + $pack
 $archive = if ($PackageArchivePath) {
     (Resolve-Path $PackageArchivePath).Path
 } else {
-    Join-Path $cache ('kusto-language-' + $package.version + '.zip')
+    Join-Path $cache ('microsoft.azure.kusto.language.' + $package.version + '.nupkg')
 }
 if (-not (Test-Path $archive)) {
     $url = 'https://api.nuget.org/v3-flatcontainer/microsoft.azure.kusto.language/' +
@@ -50,7 +50,7 @@ $extract = Join-Path $cache 'extracted'
 $dll = Join-Path $extract 'lib/net6.0/Kusto.Language.dll'
 # Re-extract from the verified archive on each run; do not trust a
 # potentially stale or modified DLL in a shared temporary cache.
-Expand-Archive -LiteralPath $archive -DestinationPath $extract -Force
+[System.IO.Compression.ZipFile]::ExtractToDirectory($archive, $extract, $true)
 if (-not (Test-Path $dll)) {
     throw ('Kusto.Language .NET 6 assembly unavailable in ' + $extract)
 }

@@ -45,7 +45,7 @@ python -B -m unittest discover -s tests -v
 pwsh -NoProfile -File scripts/validate_kql_schemas.ps1
 ```
 
-The PowerShell verifier retrieves the SHA-256-verified Microsoft NuGet package (or accepts `-PackageArchivePath`), creates source table schemas in memory, parses and statically analyzes all seven queries, and fails on diagnostics or missing required fields. It never authenticates to Sentinel/Defender.
+The PowerShell verifier retrieves the SHA-256-verified Microsoft NuGet `.nupkg` package (or accepts `-PackageArchivePath` pointing to a `.nupkg` or renamed `.zip`), extracts it using .NET `ZipFile` without extension assumptions, creates source table schemas in memory, parses and statically analyzes all seven queries, and fails on diagnostics or missing required fields. It never authenticates to Sentinel/Defender.
 
 ## What remains blocked
 
