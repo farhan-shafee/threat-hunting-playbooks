@@ -1,88 +1,91 @@
-# Threat Hunting Portfolio Lab
+# Threat Hunting Playbooks — Offline Evidence Lab
 
-A hands-on, interview-ready lab that demonstrates how I run structured threat hunts and document analyst decisions.
+> An **educational security engineering portfolio project**, not a production SOC system. All included telemetry is synthetic. No customer environments, live security alerts, or actual compromises are claimed.
 
-> This repo is a **portfolio lab**. It is intentionally educational and does **not** claim production SOC authority, customer incident ownership, or enterprise-wide detection coverage.
+This repo shows how to move from a behavior hypothesis to an **auditable finding**: input telemetry, deterministic evaluation, negative controls, decision rationale, evidence record references, and reproducible reports.
 
-## Why this exists
+## What is actually implemented?
 
-I built this lab to show practical capability for SOC Analyst / Security Analyst / Threat Hunter / Junior Detection Engineer roles:
-- turning attacker behavior into hunt hypotheses
-- writing and tuning SIEM queries
-- triaging findings with evidence-based escalation criteria
-- documenting outcomes in concise hunt summaries
+| Track | State | Evidence |
+|---|---|---|
+| Entra-style identity hunting (spray + failures followed by success) | **Offline implemented and tested** | [auth report](samples/reports/reproduced/auth-v1.md) |
+| Defender-style suspicious PowerShell activity | **Offline implemented and tested** | [PowerShell report](samples/reports/reproduced/powershell-v1.md) |
+| Lateral movement | **Documented hunt; not exercised with an offline fixture** | [playbook](hunts/lateral-movement.md) |
+| Data exfiltration | **Documented; schema-reviewed Sentinel proxy example only** | [playbook](hunts/data-exfiltration-indicators.md) |
+| Cloud compromise | **Documented; tenant and connector verification pending** | [playbook](hunts/cloud-account-compromise.md) |
+| Persistence | **Documented; offline evaluation pending** | [playbook](hunts/persistence-mechanisms.md) |
+| Additional Windows/network/cloud examples | **Illustrative only; not live-tested** | [query limitations](docs/query-contract.md) |
+
+**Important:** The Python evaluator is **not** a KQL parser or a Microsoft Defender/Sentinel connector. Offline findings do not prove that the Markdown KQL returns identical records, compiles against a live tenant, or has measured sensitivity/precision.
+
+## Run it on Windows (Codex Desktop / PowerShell)
+
+From the cloned repository root:
+
+```powershell
+python scripts/validate_playbooks.py
+python -m unittest discover -s tests -v
+python scripts/run_hunt.py --hunt auth --input samples/logs/auth-lab-v1.csv
+python scripts/run_hunt.py --hunt powershell --input samples/logs/powershell-lab-v1.csv
+python scripts/render_reports.py --check
+```
+
+On macOS/Linux, run the same Python commands; `make validate` is an optional wrapper.
+
+No Docker, SIEM tenant, paid API, log collection agent, cloud subscription, or third-party Python packages are required for these **offline** examples.
+
+## What the evaluator does
+
+**Authentication:** From a synthetic `SigninLogs`-style CSV, distinguish invalid-password error `50126` from unrelated auth errors. Find (a) six or more failures spanning at least three identities from one IP in a 15-minute window and (b) five or more failures followed by success for one identity/IP within 15 minutes. Time order is enforced; success resets the sequence.
+
+**PowerShell:** From `DeviceProcessEvents`-style CSV, examine executable, command-line indicators, and process parent; prioritize encoded/obfuscated execution when launched from an Office/script-host parent. Approved automation could still generate a review candidate.
+
+The evaluator refuses missing/duplicate columns, malformed rows, naive timestamps, oversized inputs, and unknown hunts. Reports omit raw command lines, record normalized input SHA-256, and use stable ordering. It does not decode or execute payloads.
+
+## Evidence and integrity
+
+- [Synthetic identity fixture](samples/logs/auth-lab-v1.csv) → [generated identity review](samples/reports/reproduced/auth-v1.md)
+- [Synthetic PowerShell fixture](samples/logs/powershell-lab-v1.csv) → [generated PowerShell review](samples/reports/reproduced/powershell-v1.md)
+- [Regression tests](tests/test_engine.py) test positive cases, benign noise, time boundaries, sorting, and schema failures.
+- [GitHub CI](.github/workflows/ci.yml) checks Python, Markdown, tests, and committed report reproducibility on Windows and Linux.
+- [Audit and engineering roadmap](docs/engineering-audit.md) records what is real, what is unverified, and next acceptance gates.
+- [Telemetry/query contract](docs/query-contract.md) explains vendor-specific schema assumptions.
+
+Older sample summaries in `samples/reports/` were **illustrative narratives** prepared before this reproducible evaluator; do not equate their counts with either new fixture. The `reproduced/` reports alone have automated input lineage.
+
+## Hunt methodology
+
+1. Make a falsifiable hypothesis, identify the ATT&CK behavior, and define *how it could be wrong*.
+2. Prove necessary telemetry exists, check UTC/source timestamps, retention and gaps.
+3. Run a scoped query or offline evaluator; retain input hashes and time windows.
+4. Triage with independent evidence (process tree, authorization, identity, destination).
+5. Test expected suspicious and benign cases, plus boundary/negative controls.
+6. Escalate only after evidence meets a documented criterion. No automated containment here.
+7. Tune with a measured false-positive review and reproduce results.
+
+See [methodology](docs/threat-hunting-methodology.md).
 
 ## Repository map
 
 ```text
-hunts/                  # Primary hunt playbooks (6 core scenarios)
-docs/                   # Methodology, assumptions, and reference guidance
-samples/logs/           # Synthetic telemetry snippets for practice
-samples/reports/        # Example completed hunt summaries
-queries/                # Reusable KQL snippets
-scripts/                # Validation checks used locally and in CI
-.github/workflows/      # CI workflow
-legacy-playbooks/       # (planned) migration target for older markdown content
+huntlab/                  Python offline evaluator (2 implemented hunts)
+tests/                    Regression/negative test cases
+samples/logs/*-lab-v1.csv Synthetic example inputs for implemented hunts
+samples/reports/reproduced/ Generated evidence, checked for reproducibility
+hunts/                    6 primary Markdown hunt playbooks
+cloud/ network/ windows/  Additional illustrative scenarios
+queries/                  KQL reference collection (not live-validated)
+docs/                     Methodology, audit, query limitations
+scripts/                  CLI, reports, validation, formatter
+.github/workflows/        CI on push and pull requests
 ```
 
-## Core hunt playbooks
+## Boundaries
 
-- Suspicious PowerShell → `hunts/suspicious-powershell.md`
-- Unusual authentication behavior → `hunts/unusual-authentication-behavior.md`
-- Lateral movement → `hunts/lateral-movement.md`
-- Data exfiltration indicators → `hunts/data-exfiltration-indicators.md`
-- Cloud account compromise → `hunts/cloud-account-compromise.md`
-- Persistence mechanisms → `hunts/persistence-mechanisms.md`
+- Only run this repository on synthetic or explicitly authorized sanitized telemetry; it is not configured to ingest real tenant data.
+- Do not introduce customer identifiers, credentials, access tokens, proprietary incident logs, or high-risk payloads into public fixtures or reports.
+- The examples provide **review candidates**, never a determination of compromise.
+- No alert-quality, enterprise coverage, time-to-detect, or production deployment claims are made.
+- Any KQL deployment needs separately documented connector, licensing, table schema, testing, threshold tuning, and approval.
 
-Every playbook includes:
-- hypothesis + objective
-- required data sources
-- SIEM query examples
-- expected results
-- investigation steps
-- false-positive guidance
-- escalation criteria
-- MITRE ATT&CK mapping
-- tuning notes
-
-## Workflow used in this lab
-
-1. Define a falsifiable hypothesis.
-2. Verify telemetry prerequisites.
-3. Run initial query and collect candidate findings.
-4. Enrich with process/user/network/cloud context.
-5. Decide benign vs suspicious using explicit criteria.
-6. Tune logic to reduce recurring false positives.
-7. Document hunt summary and follow-up actions.
-
-See `docs/threat-hunting-methodology.md`.
-
-## Sample outputs included
-
-- synthetic log snippets in `samples/logs/`
-- completed hunt summaries in `samples/reports/`
-
-These artifacts are synthetic by design and are provided to demonstrate analysis workflow, not real incidents.
-
-## Skills demonstrated
-
-- SIEM query authoring (KQL-style)
-- endpoint + identity + network + cloud triage
-- ATT&CK-based behavior mapping
-- practical false-positive reduction
-- written communication for investigation outcomes
-
-## Limitations and honesty notes
-
-- Queries are generalized and require adaptation to your schema/table names.
-- Thresholds are starter values, not universal production thresholds.
-- Sample data is intentionally small and synthetic.
-- This repository avoids fabricated companies, breaches, threat intel claims, and fake impact metrics.
-
-## Quickstart
-
-```bash
-make validate
-```
-
-This runs markdown quality checks for hunt playbook structure and query code-block presence.
+Contribution and vulnerability reporting guidance: [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md).

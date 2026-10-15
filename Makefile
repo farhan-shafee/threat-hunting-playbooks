@@ -1,4 +1,14 @@
-.PHONY: validate
+PYTHON ?= python3
+
+.PHONY: validate test reports
 
 validate:
-	python3 scripts/validate_playbooks.py
+	$(PYTHON) scripts/validate_playbooks.py
+	$(PYTHON) -m unittest discover -s tests -v
+	$(PYTHON) scripts/render_reports.py --check
+
+test:
+	$(PYTHON) -m unittest discover -s tests -v
+
+reports:
+	$(PYTHON) scripts/render_reports.py

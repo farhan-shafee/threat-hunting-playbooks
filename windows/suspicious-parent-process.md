@@ -1,5 +1,8 @@
 # 🪟 Windows Hunt: Suspicious Parent Process
 
+> **Query status:** Historical, illustrative KQL only; not executed against a live SIEM.
+> Verify required data connector, table names, columns, and logic against your actual environment before use.
+
 ## 🎯 Objective  
 Identify malicious execution chains where legitimate apps launch system tools.
 
@@ -14,10 +17,11 @@ Identify malicious execution chains where legitimate apps launch system tools.
 ---
 
 ## 🧪 Hunt Query (KQL)
-kql
+```kql
 DeviceProcessEvents
 | where InitiatingProcessFileName in ("WINWORD.EXE", "EXCEL.EXE", "outlook.exe", "wscript.exe", "cscript.exe")
 | where FileName in ("powershell.exe", "cmd.exe", "regsvr32.exe", "mshta.exe")
+```
 
 ---
 
