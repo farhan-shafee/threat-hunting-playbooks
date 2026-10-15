@@ -117,6 +117,40 @@ foreach ($entry in $manifest.queries) {
         $errors += $fatal.Count
     }
 }
+# The ADX synthetic replay bundle is a separate, in-memory validation tier.
+# It is checked for syntax and symbol/type regressions only; the CI runner
+# does NOT execute any of these queries against a cloud cluster.
+$adxDirectory = Join-Path $root 'queries/adx-validation/generated'
+$adxReceiptPath = Join-Path $root 'evidence/adx-free-2026-10-15/receipt.json'
+if ((Test-Path $adxDirectory) -and (Test-Path $adxReceiptPath)) {
+    $adxReceipt = Get-Content -Raw -Encoding UTF8 $adxReceiptPath | ConvertFrom-Json -AsHashtable
+    $adxSources = @($adxReceipt.scenarios | ForEach-Object { $_.file })
+    $adxNames = [System.Collections.Generic.List[string]]::new()
+    foreach ($name in $adxSources) {
+        if ($name -notmatch '^[a-z0-9-]+\.kql$') { throw 'Invalid ADX replay filename' }
+        $adxNames.Add($name)
+        $adxNames.Add($name.Replace('.kql', '.assert.kql'))
+    }
+    $adxActual = @(Get-ChildItem -LiteralPath $adxDirectory -Filter '*.kql' -File |
+        ForEach-Object { $_.Name } | Sort-Object)
+    if (($adxNames.ToArray() | Sort-Object) -join '|' -ne ($adxActual -join '|')) {
+        throw 'ADX synthetic replay KQL inventory mismatch'
+    }
+    foreach ($filename in $adxNames) {
+        $adxFile = Join-Path $adxDirectory $filename
+        $analyzed = [Kusto.Language.KustoCode]::ParseAndAnalyze(
+            (Get-Content -Raw -Encoding UTF8 $adxFile), $globals
+        )
+        $diagnostics = @($analyzed.GetDiagnostics())
+        $fatal = @($diagnostics | Where-Object { $_.Severity.ToString() -eq 'Error' })
+        Write-Output ('[ADX SYNTHETIC STATIC] ' + $filename + ': ' +
+            $diagnostics.Count + ' diagnostics, ' + $fatal.Count + ' errors')
+        foreach ($problem in $diagnostics) {
+            Write-Output ('  ' + $problem.Severity + ': ' + $problem.Message)
+        }
+        $errors += $fatal.Count
+    }
+}
 if ($errors -gt 0) {
     Write-Output ('[FAIL] Source-schema KQL check: ' + $errors + ' errors')
     exit 1

@@ -1,0 +1,35 @@
+// GENERATED from the captured 2026-10-15 synthetic ADX execution.
+// Read-only in-memory datatable; NO Sentinel/Defender tenant execution.
+// Never treat this replay as proof of real sensor or connector coverage.
+let __SyntheticAnchor = bin(now() - 2h, 15m);
+let DeviceProcessEvents = datatable(FixtureMinute:int, DeviceName:string, AccountName:string, FileName:string, ProcessCommandLine:string, InitiatingProcessFileName:string, ReportId:long)
+[
+    0, "WORKSTATION-1", "alice", "powershell.exe", "powershell.exe -enc QQ==", "WINWORD.EXE", 101,
+    2, "WORKSTATION-2", "bob", "pwsh.exe", "pwsh.exe -encodedcommand QQ==", "explorer.exe", 102,
+    4, "WORKSTATION-3", "charlie", "powershell.exe", "powershell.exe -NoProfile Write-Output benign", "explorer.exe", 103,
+    6, "WORKSTATION-4", "dave", "cmd.exe", "cmd.exe /c echo invoke-expression", "explorer.exe", 104
+]
+| extend Timestamp = __SyntheticAnchor + FixtureMinute * 1m
+| project-away FixtureMinute;
+// DEFENDER XDR / DeviceProcessEvents: command-line and parent-process pivot.
+// Candidate text signals only: neither encoded execution nor compromise
+// is established without decoded content and corroborating context.
+DeviceProcessEvents
+| where Timestamp >= ago(1d)
+| where FileName in~ ("powershell.exe", "pwsh.exe")
+| where isnotempty(ProcessCommandLine)
+| extend CommandLower = tolower(ProcessCommandLine),
+    ParentLower = tolower(InitiatingProcessFileName)
+| extend EncodedFlag = CommandLower matches regex @"(^|\s)-(enc|encodedcommand)(\s|:|$)",
+    ScriptMarker = CommandLower contains "frombase64string"
+        or CommandLower contains "invoke-expression"
+        or CommandLower contains "iex("
+        or CommandLower contains "downloadstring("
+| where EncodedFlag or ScriptMarker
+| extend RiskyParent = ParentLower in ("winword.exe", "excel.exe",
+    "outlook.exe", "wscript.exe", "cscript.exe", "mshta.exe")
+| extend ReviewPriority = iff(RiskyParent, "high", "medium")
+| project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine,
+    InitiatingProcessFileName, EncodedFlag, ScriptMarker, RiskyParent,
+    ReviewPriority, ReportId
+| order by Timestamp desc

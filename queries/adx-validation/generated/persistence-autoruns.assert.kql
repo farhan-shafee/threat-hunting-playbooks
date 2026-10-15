@@ -1,0 +1,35 @@
+// GENERATED from the captured 2026-10-15 synthetic ADX execution.
+// Read-only in-memory datatable; NO Sentinel/Defender tenant execution.
+// Never treat this replay as proof of real sensor or connector coverage.
+let __SyntheticAnchor = bin(now() - 2h, 15m);
+let DeviceRegistryEvents = datatable(FixtureMinute:int, DeviceName:string, ActionType:string, RegistryKey:string, RegistryValueName:string, RegistryValueData:string, InitiatingProcessFileName:string, InitiatingProcessAccountName:string, ReportId:long)
+[
+    14, "LAB-PC", "RegistryValueSet", "HKEY_CURRENT_USER\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\Updater", "Updater", "C:\\Users\\lab\\agent.exe", "explorer.exe", "lab", 301,
+    17, "LAB-PC", "RegistryValueSet", "HKEY_LOCAL_MACHINE\\Software\\Microsoft\\Windows NT\\CurrentVersion\\Schedule\\TaskCache\\Tasks", "Task", "C:\\Windows\\system32\\agent.exe", "services.exe", "system", 302,
+    20, "LAB-PC", "RegistryValueSet", "HKEY_CURRENT_USER\\Software\\Legit\\Config", "Enabled", "1", "explorer.exe", "lab", 303
+]
+| extend Timestamp = __SyntheticAnchor + FixtureMinute * 1m
+| project-away FixtureMinute;
+let __SyntheticResults = materialize(
+// DEFENDER XDR / DeviceRegistryEvents: Windows autorun registry changes.
+// RegistryValueData is deliberately NOT filtered by script keywords;
+// direct unfamiliar executable paths must remain reviewable.
+// Does NOT detect all task or service creation; requires DeviceEvents/Windows logs.
+DeviceRegistryEvents
+| where Timestamp >= ago(1d)
+| where isnotempty(RegistryKey)
+| where RegistryKey contains @"\CurrentVersion\Run"
+    or RegistryKey contains @"\CurrentVersion\RunOnce"
+    or RegistryKey contains @"\Schedule\TaskCache"
+| project Timestamp, DeviceName, ActionType, RegistryKey,
+    RegistryValueName, RegistryValueData,
+    InitiatingProcessFileName, InitiatingProcessAccountName, ReportId
+| order by Timestamp desc
+);
+let __Observed = toscalar(__SyntheticResults | count);
+let __Matched = toscalar(__SyntheticResults | where ReportId in (301, 302) | count);
+let __ActualIds = toscalar(__SyntheticResults | summarize Ids=make_set(ReportId));
+let __ExpectedIds = dynamic([301,302]);
+print Scenario="persistence-autoruns", Expected=2, Observed=__Observed, Matched=__Matched,
+  IdentityMatch=set_equals(__ActualIds, __ExpectedIds),
+  Verdict=iff(__Observed == 2 and __Matched == 2 and set_equals(__ActualIds, __ExpectedIds), "PASS", "FAIL")

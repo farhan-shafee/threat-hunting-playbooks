@@ -1,0 +1,42 @@
+// GENERATED from the captured 2026-10-15 synthetic ADX execution.
+// Read-only in-memory datatable; NO Sentinel/Defender tenant execution.
+// Never treat this replay as proof of real sensor or connector coverage.
+let __SyntheticAnchor = bin(now() - 2h, 15m);
+let AuditLogs = datatable(FixtureMinute:int, Id:string, OperationName:string, Result:string, InitiatedBy:dynamic, TargetResources:dynamic, CorrelationId:string)
+[
+    11, "ev1", "Add member to role", "success", dynamic({"user":{"displayName":"lab-user"}}), dynamic([{"displayName":"lab-role"}]), "test-ev1",
+    13, "ev2", "Add member to role completed (PIM activation)", "success", dynamic({"user":{"displayName":"lab-user"}}), dynamic([{"displayName":"lab-role"}]), "test-ev2",
+    14, "ev3", "Add member to role", "failure", dynamic({"user":{"displayName":"lab-user"}}), dynamic([{"displayName":"lab-role"}]), "test-ev3",
+    16, "ev4", "Add member to role requested (PIM activation)", "success", dynamic({"user":{"displayName":"lab-user"}}), dynamic([{"displayName":"lab-role"}]), "test-ev4",
+    18, "ev5", "Consent to application", "success", dynamic({"user":{"displayName":"lab-user"}}), dynamic([{"displayName":"lab-role"}]), "test-ev5"
+]
+| extend TimeGenerated = __SyntheticAnchor + FixtureMinute * 1m
+| project-away FixtureMinute;
+// SENTINEL / AuditLogs: completed high-interest Entra administration events.
+// OperationName spellings come from Microsoft Entra audit activity reference.
+// Result must indicate success. Neither unauthorized change nor account
+// compromise can be inferred without independent approval/context evidence.
+AuditLogs
+| where TimeGenerated >= ago(7d)
+| where OperationName in~ (
+    "Add member to role",
+    "Add role assignment to role definition",
+    "Add member to role completed (PIM activation)",
+    "Add member to role in PIM completed (timebound)",
+    "Add app role assignment to service principal",
+    "Add delegated permission grant",
+    "Consent to application",
+    "Add service principal credentials"
+)
+| where tostring(Result) =~ "success"
+| extend ChangeClass = case(
+    OperationName contains "PIM", "completed PIM change",
+    OperationName contains "service principal credentials", "credential addition",
+    OperationName contains "Consent", "application consent",
+    OperationName contains "delegated permission", "delegated permission grant",
+    OperationName contains "role", "role or app-role change",
+    "other reviewed operation"
+)
+| project TimeGenerated, Id, OperationName, ChangeClass,
+    Result, InitiatedBy, TargetResources, CorrelationId
+| order by TimeGenerated desc

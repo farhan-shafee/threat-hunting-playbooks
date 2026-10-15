@@ -1,0 +1,175 @@
+{
+  "receipt_version": "1.0",
+  "evidence_label": "Human-observed Azure Data Explorer free cluster synthetic KQL execution",
+  "observed_date_utc": "2026-10-15",
+  "environment": {
+    "product": "Azure Data Explorer free cluster",
+    "cluster_label": "ThreatHuntingLab",
+    "database_label": "SecurityLab",
+    "source": "Signed-in local Firefox query editor",
+    "credentials_collected": false
+  },
+  "method": "Each exact query in executed/ was run with a temporary inline KQL datatable shadowing the source table; 7 result grids were visually inspected during the interactive session. These results are human-transcribed, not API-exported or cryptographically signed. Source query hashes are checked against the saved files.",
+  "scope": {
+    "azure_data_explorer_synthetic_execution": true,
+    "sentinel_tenant_execution": false,
+    "defender_xdr_tenant_execution": false,
+    "cloud_queries_against_native_product_tables": false,
+    "real_incident_or_efficacy_claim": false,
+    "persistent_tables_or_ingestion": false,
+    "billing_changes": false
+  },
+  "limitations": [
+    "Recorded query snapshots use absolute timestamps from 2026-10-15 and have time-relative filters; running those snapshots later may produce zero results. Use generated/ for replay anchored to the time of execution.",
+    "The generated replay and assertion bundles were not the exact files executed during the original browser session. They preserve the fixture values, source query text and relative timings, and must be independently executed to earn their own cloud execution claim.",
+    "The evidence is a manual result transcription from observed browser output; no signed service-side export or external audit trail is supplied.",
+    "Synthetic source table shadows do not verify Sentinel/Defender connectors, schema deployment, real audit operation populations, detection sensitivity, or production false positives."
+  ],
+  "scenarios": [
+    {
+      "file": "auth-failure-success.kql",
+      "table": "SigninLogs",
+      "anchor_minutes": 15,
+      "expected_rows": 1,
+      "fixture_rows": 13,
+      "match": "UserKey == \"alice@lab.local\" and IPAddress == \"192.0.2.10\" and FailureCount == 5 and SuccessId == \"a-ok\"",
+      "observed_utc": "2026-10-15T04:52:00Z",
+      "observed_seconds": 0.53,
+      "observations": [
+        "One matching Alice success after five distinct failure events",
+        "A duplicate failure Id was not counted twice",
+        "Bob's success before his failures was excluded"
+      ],
+      "captured_query_sha256": "1b98c8b8f4a664b46eac9e953ca50a689166d6fe5a774a7587862b9f714cbc1c",
+      "identity_field": "SuccessId",
+      "expected_identity_values": [
+        "a-ok"
+      ]
+    },
+    {
+      "file": "auth-spray.kql",
+      "table": "SigninLogs",
+      "anchor_minutes": 15,
+      "expected_rows": 1,
+      "fixture_rows": 12,
+      "match": "IPAddress == \"192.0.2.80\" and FailureEvents == 6 and DistinctUsers == 3",
+      "observed_utc": "2026-10-15T04:55:00Z",
+      "observed_seconds": 0.248,
+      "observations": [
+        "One 15-minute bin qualified after six unique source events against three identities",
+        "Repeated SigninId did not inflate events",
+        "Other source IP's activity did not qualify"
+      ],
+      "captured_query_sha256": "cd5d2bff520d61d8b9dc843ded8238ae4e51eb2be2757ac8f89236353561c1b3",
+      "identity_field": "IPAddress",
+      "expected_identity_values": [
+        "192.0.2.80"
+      ]
+    },
+    {
+      "file": "powershell-execution.kql",
+      "table": "DeviceProcessEvents",
+      "anchor_minutes": 15,
+      "expected_rows": 2,
+      "fixture_rows": 4,
+      "match": "(ReportId == 101 and ReviewPriority == \"high\" and RiskyParent == true) or (ReportId == 102 and ReviewPriority == \"medium\" and RiskyParent == false)",
+      "observed_utc": "2026-10-15T04:54:00Z",
+      "observed_seconds": 0.201,
+      "observations": [
+        "Two PowerShell/pwsh encoded-command candidates",
+        "Office parent high-priority, explorer parent medium-priority",
+        "Benign PowerShell and unrelated cmd rows excluded"
+      ],
+      "captured_query_sha256": "51096ec2ba391b5b1f9f76d722c59f5f1507df77ef7e107467c6cf2cf2b5eeb4",
+      "identity_field": "ReportId",
+      "expected_identity_values": [
+        101,
+        102
+      ]
+    },
+    {
+      "file": "lateral-execution-pivot.kql",
+      "table": "DeviceProcessEvents",
+      "anchor_minutes": 15,
+      "expected_rows": 2,
+      "fixture_rows": 4,
+      "match": "ReportId in (201, 202)",
+      "observed_utc": "2026-10-15T04:56:00Z",
+      "observed_seconds": 0.23,
+      "observations": [
+        "PsExec invocation and WMIC remote-command pivot returned",
+        "Benign local PowerShell and unrelated cmd entries excluded",
+        "No cross-sensor destination-host correlation established"
+      ],
+      "captured_query_sha256": "185d32877d3578a8a7d4b88dd79402dc8b45904d14459dacf7d267af510ba30a",
+      "identity_field": "ReportId",
+      "expected_identity_values": [
+        201,
+        202
+      ]
+    },
+    {
+      "file": "persistence-autoruns.kql",
+      "table": "DeviceRegistryEvents",
+      "anchor_minutes": 15,
+      "expected_rows": 2,
+      "fixture_rows": 3,
+      "match": "ReportId in (301, 302)",
+      "observed_utc": "2026-10-15T04:56:00Z",
+      "observed_seconds": 0.175,
+      "observations": [
+        "Run-key direct executable and TaskCache registry events returned",
+        "Unrelated configuration registry key excluded",
+        "No native task/service creation event verification"
+      ],
+      "captured_query_sha256": "fdd41cc6123847a93c7fa5529c07bf5d6fdfa8113c0f70656b774f792e9e8853",
+      "identity_field": "ReportId",
+      "expected_identity_values": [
+        301,
+        302
+      ]
+    },
+    {
+      "file": "cloud-entra-changes.kql",
+      "table": "AuditLogs",
+      "anchor_minutes": 15,
+      "expected_rows": 3,
+      "fixture_rows": 5,
+      "match": "Id in (\"ev1\", \"ev2\", \"ev5\") and Result =~ \"success\"",
+      "observed_utc": "2026-10-15T04:56:00Z",
+      "observed_seconds": 0.174,
+      "observations": [
+        "Completed role grant, completed PIM role change and consent events returned",
+        "Failed grant and PIM request-only candidate excluded",
+        "No real Entra role/account permissions confirmed"
+      ],
+      "captured_query_sha256": "be6a3783d074d9b516e99ed41935bf572bde0b0b3b4b93039f1e9f34324aec0c",
+      "identity_field": "Id",
+      "expected_identity_values": [
+        "ev1",
+        "ev2",
+        "ev5"
+      ]
+    },
+    {
+      "file": "egress-byte-volume.kql",
+      "table": "CommonSecurityLog",
+      "anchor_minutes": 60,
+      "expected_rows": 1,
+      "fixture_rows": 4,
+      "match": "SourceIP == \"192.0.2.25\" and DestinationIP == \"203.0.113.8\" and ObservedSentBytes == 550000000 and SourceEvents == 2",
+      "observed_utc": "2026-10-15T04:54:00Z",
+      "observed_seconds": 0.277,
+      "observations": [
+        "Two synthetic bytes events summed to 550000000",
+        "Lower-volume and negative-byte controls excluded",
+        "Calendar-hour bin is not sliding-hour session-normalized exfiltration detection"
+      ],
+      "captured_query_sha256": "1302f4637b5dea59fed28cf026104c06d52e238014ef9a3216a66fdd2b901d13",
+      "identity_field": "SourceIP",
+      "expected_identity_values": [
+        "192.0.2.25"
+      ]
+    }
+  ]
+}
