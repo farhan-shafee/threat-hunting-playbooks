@@ -20,9 +20,12 @@
   "effective_parameters": {
     "EGRESS-HIGH-VOLUME": {
       "approved_yes_suppressed": true,
+      "cumulative_interval_policy": "entire previous-to-current interval inside window",
       "cumulative_requires_first_observation_zero": true,
+      "delta_event_semantics": "per-event bytes attributed to event timestamp",
       "max_findings_per_host_destination_approval": 1,
       "minimum_bytes": 500000000,
+      "overlong_intervals": "exclude contribution; emit warning",
       "requires_destination_class": "external",
       "requires_direction": "outbound",
       "window_inclusive": true,
@@ -30,7 +33,7 @@
     }
   },
   "rule_versions": {
-    "EGRESS-HIGH-VOLUME": "1.0.0"
+    "EGRESS-HIGH-VOLUME": "1.0.1"
   }
 }
 ```

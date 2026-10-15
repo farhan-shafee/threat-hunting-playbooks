@@ -42,6 +42,8 @@ RULE_IDS = {
 RULE_VERSIONS = {rule: "1.1.0" for rules in RULE_IDS.values() for rule in rules}
 RULE_IDS.update(EXT_RULE_IDS)
 RULE_VERSIONS.update({rule: "1.0.0" for rules in EXT_RULE_IDS.values() for rule in rules})
+# Reviewed Phase 2 behavior corrections; version these rules independently.
+RULE_VERSIONS.update({"PERSIST-RECREATION": "1.0.1", "EGRESS-HIGH-VOLUME": "1.0.1"})
 RULE_PARAMETERS = {
     "AUTH-FAILED-THEN-SUCCESS": {
         "minimum_failures": 5,

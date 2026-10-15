@@ -8,6 +8,8 @@ PR #2 was merged as commit `26d35f5330f9b0587da39d4215e9cb3f8ea85b48` after 94 t
 
 Phase 2 adds four bounded, synthetic, deterministic evidence hunts on a new feature branch: strictly ordered connection→logon→execution correlation; unapproved persistence changes and deletion/recreation; completed cloud-admin/access-key changes; and observed outbound bytes with conservative cumulative/delta accounting. Input-only SHA-256, structured candidate evidence, duplicate-ID suppression and explicit unknown-counter warnings are recorded. See [PHASE2_HUNTS.md](PHASE2_HUNTS.md) for the schemas, confirmed behavior, negative controls, and limitations.
 
+**Independent PR #3 review and correction:** Codex identified two evidence-semantics issues: tied persistence changes could consume deletions according to CSV order, and cumulative byte increments were attributed wholly to the later timestamp even if measured across more than an hour. The focused correction groups persistence actions by timestamp, enforces strictly later updates, and accounts for the *entire* cumulative observation interval in each rolling hour using an earliest-start-time heap. Both affected rule versions advance to `1.0.1`. Independent adversarial regression tests cover order permutations, inclusive microsecond boundaries, interleaved sessions and overlong gaps. Preserve the generated reports and require GitHub CI plus review-thread resolution before merge.
+
 **Not yet established:** KQL compilation or equivalence, real sensor coverage, measured production detection efficacy, true unauthorized-change validation, forensic chain of custody, or actual incident-response operations. The expanded offline scope is not evidence of those capabilities.
 
 ## Baseline findings (before this feature branch)

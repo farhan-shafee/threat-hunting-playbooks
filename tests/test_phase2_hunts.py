@@ -104,7 +104,12 @@ class Phase2Cases(unittest.TestCase):
                 self.assertEqual(len(result["rule_versions"]), len(set(
                     candidate["rule_id"] for candidate in expected["findings"]
                 )))
-                self.assertTrue(all(v == "1.0.0" for v in result["rule_versions"].values()))
+                for rule, version in result["rule_versions"].items():
+                    self.assertEqual(
+                        version,
+                        "1.0.1" if rule in {"PERSIST-RECREATION", "EGRESS-HIGH-VOLUME"}
+                        else "1.0.0",
+                    )
                 normalized = source.read_bytes().decode("utf-8-sig").replace("\r\n", "\n")
                 digest = hashlib.sha256(normalized.encode("utf-8")).hexdigest()
                 self.assertEqual(result["input_sha256_normalized_utf8"], digest)

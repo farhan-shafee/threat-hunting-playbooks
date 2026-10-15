@@ -20,13 +20,16 @@
   "effective_parameters": {
     "PERSIST-RECREATION": {
       "delete_then_create_seconds": 3600,
+      "deletion_consumed_by": "first strictly later update group",
       "match_fields": [
         "Host",
         "ArtifactType",
         "ArtifactPath"
       ],
       "requires_approved": "no",
-      "strict_event_order": true
+      "simultaneous_updates": "one candidate with all later unapproved changes",
+      "strict_event_order": true,
+      "tie_policy": "simultaneous; cannot establish temporal order"
     },
     "PERSIST-UNAPPROVED-ENTRY": {
       "actions": [
@@ -44,7 +47,7 @@
     }
   },
   "rule_versions": {
-    "PERSIST-RECREATION": "1.0.0",
+    "PERSIST-RECREATION": "1.0.1",
     "PERSIST-UNAPPROVED-ENTRY": "1.0.0"
   }
 }

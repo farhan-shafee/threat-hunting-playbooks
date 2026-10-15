@@ -6,8 +6,8 @@ provider, packet sensor, or incident-response platform.
 """
 from __future__ import annotations
 
-from collections import deque
-from datetime import timedelta
+from datetime import datetime, timedelta
+from heapq import heappop, heappush
 from ipaddress import ip_address
 from itertools import groupby
 from typing import TYPE_CHECKING, Callable
@@ -62,6 +62,9 @@ EXT_RULE_PARAMETERS = {
         "strict_event_order": True,
         "requires_approved": "no",
         "match_fields": ["Host", "ArtifactType", "ArtifactPath"],
+        "tie_policy": "simultaneous; cannot establish temporal order",
+        "deletion_consumed_by": "first strictly later update group",
+        "simultaneous_updates": "one candidate with all later unapproved changes",
     },
     "CLOUD-UNAPPROVED-ADMIN-GRANT": {
         "operations": [
@@ -85,6 +88,9 @@ EXT_RULE_PARAMETERS = {
         "approved_yes_suppressed": True,
         "max_findings_per_host_destination_approval": 1,
         "cumulative_requires_first_observation_zero": True,
+        "cumulative_interval_policy": "entire previous-to-current interval inside window",
+        "overlong_intervals": "exclude contribution; emit warning",
+        "delta_event_semantics": "per-event bytes attributed to event timestamp",
     },
 }
 WINDOWS = {
@@ -286,37 +292,61 @@ def _persistence(rows: list[Row], finding: Callable) -> tuple[list[dict], list[s
     results: list[dict] = []
     deletions: dict[tuple[str, str, str], Row] = {}
     window = timedelta(seconds=3600)
-    for row in rows:
-        f = row.fields
-        key = (
-            f["Host"].casefold(), f["ArtifactType"],
-            f["ArtifactPath"].casefold(),
+
+    def artifact_key(row: Row) -> tuple[str, str, str]:
+        fields = row.fields
+        return (
+            fields["Host"].casefold(), fields["ArtifactType"],
+            fields["ArtifactPath"].casefold(),
         )
-        if f["Action"] == "deleted":
-            deletions[key] = row
-            continue
-        if f["Approved"] == "no":
+
+    for at, same_time in groupby(rows, key=lambda event: event.at):
+        batch = list(same_time)
+        artifacts: dict[tuple[str, str, str], list[Row]] = {}
+        for row in batch:
+            fields = row.fields
+            artifacts.setdefault(artifact_key(row), []).append(row)
+            if fields["Action"] == "deleted" or fields["Approved"] != "no":
+                continue
             results.append(finding(
                 "persistence", "PERSIST-UNAPPROVED-ENTRY",
-                "high" if f["SignerStatus"] == "unsigned" else "medium",
-                f"{f['Host']} | {f['ArtifactType']} | {f['ArtifactPath']}",
+                "high" if fields["SignerStatus"] == "unsigned" else "medium",
+                f"{fields['Host']} | {fields['ArtifactType']} | {fields['ArtifactPath']}",
                 [row], [
-                    f"artifact {f['Action']}; executable: {f['Executable']}",
-                    f"signer metadata: {f['SignerStatus']}",
+                    f"artifact {fields['Action']}; executable: {fields['Executable']}",
+                    f"signer metadata: {fields['SignerStatus']}",
                     "approval=no is a synthetic annotation, not source verification",
                 ],
             ))
-        earlier = deletions.pop(key, None)
-        if (earlier is not None and f["Approved"] == "no"
-                and earlier.at < row.at and row.at - earlier.at <= window):
-            results.append(finding(
-                "persistence", "PERSIST-RECREATION", "high",
-                f"{f['Host']} | {f['ArtifactType']} | {f['ArtifactPath']}",
-                [earlier, row], [
-                    "same artifact path deleted and recreated within 60 minutes",
-                    "recreation approval=no (synthetic annotation)",
-                ],
-            ))
+
+        # A timestamp group is simultaneous: row order cannot establish which
+        # tied action preceded a deletion, and a tied update cannot consume it.
+        for key, group in sorted(artifacts.items()):
+            earlier = deletions.get(key)
+            changes = [r for r in group if r.fields["Action"] != "deleted"]
+            unapproved = [r for r in changes if r.fields["Approved"] == "no"]
+            if earlier is not None and earlier.at < at and changes:
+                if at - earlier.at <= window and unapproved:
+                    actor = min(unapproved, key=lambda r: r.fields["EventId"]).fields
+                    results.append(finding(
+                        "persistence", "PERSIST-RECREATION", "high",
+                        f"{actor['Host']} | {actor['ArtifactType']} | {actor['ArtifactPath']}",
+                        [earlier, *unapproved], [
+                            "same artifact path deleted and recreated within 60 minutes",
+                            "recreation approval=no (synthetic annotation)",
+                        ],
+                    ))
+                # An actual *later* update uses up the pending deletion,
+                # including authorized changes, so it cannot be reused.
+                deletions.pop(key, None)
+
+            tied_deletions = [r for r in group if r.fields["Action"] == "deleted"]
+            if tied_deletions:
+                # Deterministic selection for multiple deletes at one instant.
+                # Tied updates cannot establish temporal order against them.
+                deletions[key] = min(
+                    tied_deletions, key=lambda r: r.fields["EventId"]
+                )
     return results, []
 
 
@@ -420,18 +450,31 @@ def _egress(
     lookback = timedelta(seconds=3600)
     for (source, target, approved), events in sorted(by_pair.items()):
         events.sort(key=lambda e: (e[0].at, e[0].record))
-        window: deque[tuple[Row, int, list[Row]]] = deque()
+        # Keep only contributions whose WHOLE observation interval falls
+        # inside the rolling hour. A cumulative delta is observed across
+        # [previous sample, current sample], not at the endpoint alone.
+        # A min-heap on interval START is necessary: overlapping sessions
+        # can have different start times even when their ends are sorted.
+        active: list[tuple[datetime, int, int, list[Row]]] = []
         total = 0
         for at_row, amount, ancestors in events:
-            while window and at_row.at - window[0][0].at > lookback:
-                total -= window.popleft()[1]
-            window.append((at_row, amount, ancestors))
+            interval_start = ancestors[0].at
+            if at_row.at - interval_start > lookback:
+                warnings.append(
+                    "cumulative observation interval exceeds 60-minute window "
+                    f"for session {at_row.fields['SessionId']}"
+                )
+                continue
+            heappush(active, (interval_start, at_row.record, amount, ancestors))
             total += amount
+            cutoff = at_row.at - lookback
+            while active and active[0][0] < cutoff:
+                total -= heappop(active)[2]
             if total < threshold:
                 continue
             evidence = {
                 record.record: record
-                for _, _, required in window for record in required
+                for _, _, _, required in active for record in required
             }
             results.append(finding(
                 "egress", "EGRESS-HIGH-VOLUME",
