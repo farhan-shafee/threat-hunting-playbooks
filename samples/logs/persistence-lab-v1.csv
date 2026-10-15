@@ -1,0 +1,10 @@
+Timestamp,EventId,Host,Actor,ArtifactType,ArtifactPath,Action,Executable,SignerStatus,Approved
+2026-04-22T08:00:00Z,p1,WKSTN-22,analyst@lab.local,run_key,HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Updater,created,C:\Users\analyst\AppData\Local\temp.exe,unsigned,no
+2026-04-22T08:05:00Z,p2,SRV-PATCH,svc_patch@lab.local,scheduled_task,\Microsoft\Windows\Update,created,C:\Windows\System32\wuauclt.exe,signed,yes
+2026-04-22T08:06:00Z,p3,SRV-ADMIN,unknown@lab.local,service,ExampleService,modified,C:\ProgramData\agent.exe,signed,no
+2026-04-22T09:00:00Z,p4,WKSTN-22,analyst@lab.local,run_key,HKCU\Software\Lab\Unwanted,deleted,-,unknown,no
+2026-04-22T09:05:00Z,p5,WKSTN-22,analyst@lab.local,run_key,HKCU\Software\Lab\Unwanted,created,C:\Users\analyst\recreate.exe,unsigned,no
+2026-04-22T10:00:00Z,p6,SRV-OLD,svc@lab.local,scheduled_task,\Tasks\Legacy,deleted,-,unknown,no
+2026-04-22T11:01:00Z,p7,SRV-OLD,svc@lab.local,scheduled_task,\Tasks\Legacy,created,C:\Windows\System32\legit.exe,signed,no
+2026-04-22T12:00:00Z,p8,WKSTN-OPS,ops@lab.local,scheduled_task,\Ops\Routine,created,C:\Ops\approved.exe,signed,unknown
+2026-04-22T08:00:00Z,p1,WKSTN-22,analyst@lab.local,run_key,HKCU\Software\Microsoft\Windows\CurrentVersion\Run\Updater,created,C:\Users\analyst\AppData\Local\temp.exe,unsigned,no

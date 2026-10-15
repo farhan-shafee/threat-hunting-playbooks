@@ -4,6 +4,8 @@
 
 This project contains two different artifacts and does **not** claim parity:
 
+**Phase 2 addition:** Four more offline-only algorithms evaluate *invented normalized lab schemas* for lateral movement, persistence, cloud administrative changes, and network egress. These are documented in [PHASE2_HUNTS.md](PHASE2_HUNTS.md); they are **not** execution tests of the KQL Markdown and are not a replacement for vendor-specific telemetry connectors.
+
 1. **Offline Python evaluator:** proven through synthetic CSV fixtures and tests. The inputs intentionally use selected columns resembling Microsoft Entra `SigninLogs` and Defender `DeviceProcessEvents`, not complete vendor schemas.
 2. **KQL Markdown examples:** investigator starting points with different source products, data connectors, licensing, action types, and retention. Formatting and documentation are reviewed; live KQL compilation, semantic behavior, and production false-positive rates are **unverified**.
 
