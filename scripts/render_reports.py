@@ -15,6 +15,10 @@ from huntlab import run_hunt  # noqa: E402
 CASES = {
     "auth": ("auth-lab-v1.csv", "auth-v1.md"),
     "powershell": ("powershell-lab-v1.csv", "powershell-v1.md"),
+    "lateral": ("lateral-lab-v1.csv", "lateral-v1.md"),
+    "persistence": ("persistence-lab-v1.csv", "persistence-v1.md"),
+    "cloud": ("cloud-lab-v1.csv", "cloud-v1.md"),
+    "egress": ("egress-lab-v1.csv", "egress-v1.md"),
 }
 
 
@@ -55,6 +59,10 @@ def render(report: dict) -> str:
         f"- Review candidates: **{table_cell(report['findings_count'])}**",
         f"- Input SHA-256 (normalized UTF-8): {table_cell(report['input_sha256_normalized_utf8'])}",
         f"- Window: {table_cell(report['time_window'])}",
+        *([
+            f"- Unique event IDs: **{table_cell(report['events_unique'])}**",
+            f"- Duplicate event IDs suppressed: **{table_cell(report['duplicate_events_suppressed'])}**",
+        ] if "events_unique" in report else []),
         "",
         "## Rule versions and effective parameters",
         "",
@@ -105,6 +113,14 @@ def render(report: dict) -> str:
         "  numeric character references in the Markdown source; no raw command lines are included.",
         "",
     ]
+    if "data_quality_warnings" in report:
+        lines.extend(["", "## Data-quality warnings", ""])
+        if report["data_quality_warnings"]:
+            lines.extend("- " + table_cell(warning)
+                         for warning in report["data_quality_warnings"])
+        else:
+            lines.append("- None recorded for this synthetic input.")
+        lines.append("")
     return "\n".join(lines)
 
 

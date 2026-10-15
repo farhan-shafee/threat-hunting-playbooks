@@ -1,0 +1,227 @@
+{
+  "lateral": {
+    "events_evaluated": 19,
+    "events_unique": 18,
+    "duplicate_events_suppressed": 1,
+    "time_window": "10-minute strictly ordered three-event correlation",
+    "warnings": [],
+    "findings": [
+      {
+        "rule_id": "LATERAL-REMOTE-EXECUTION",
+        "severity": "high",
+        "entity": "WKSTN-A -> SRV-FIN | admin@lab.local",
+        "first_seen_utc": "2026-04-21T08:00:00Z",
+        "last_seen_utc": "2026-04-21T08:04:00Z",
+        "evidence_records": [
+          2,
+          3,
+          4
+        ],
+        "signal_contains": [
+          "outbound TCP/445",
+          "successful remote execution: service",
+          "authorization (synthetic annotation): no"
+        ]
+      },
+      {
+        "rule_id": "LATERAL-REMOTE-EXECUTION",
+        "severity": "medium",
+        "entity": "LAPTOP-77 -> SRV-CRIT | alice@lab.local",
+        "first_seen_utc": "2026-04-21T11:00:00Z",
+        "last_seen_utc": "2026-04-21T11:06:00Z",
+        "evidence_records": [
+          11,
+          12,
+          15
+        ],
+        "signal_contains": [
+          "outbound TCP/445",
+          "successful remote execution: wmi",
+          "authorization (synthetic annotation): unknown"
+        ]
+      }
+    ]
+  },
+  "persistence": {
+    "events_evaluated": 9,
+    "events_unique": 8,
+    "duplicate_events_suppressed": 1,
+    "time_window": "event review; 60-minute deletion/recreation",
+    "warnings": [],
+    "findings": [
+      {
+        "rule_id": "PERSIST-UNAPPROVED-ENTRY",
+        "severity": "high",
+        "entity": "WKSTN-22 | run_key | HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Run\\Updater",
+        "first_seen_utc": "2026-04-22T08:00:00Z",
+        "last_seen_utc": "2026-04-22T08:00:00Z",
+        "evidence_records": [
+          2
+        ],
+        "signal_contains": [
+          "artifact created",
+          "signer metadata: unsigned"
+        ]
+      },
+      {
+        "rule_id": "PERSIST-UNAPPROVED-ENTRY",
+        "severity": "medium",
+        "entity": "SRV-ADMIN | service | ExampleService",
+        "first_seen_utc": "2026-04-22T08:06:00Z",
+        "last_seen_utc": "2026-04-22T08:06:00Z",
+        "evidence_records": [
+          4
+        ],
+        "signal_contains": [
+          "artifact modified",
+          "signer metadata: signed"
+        ]
+      },
+      {
+        "rule_id": "PERSIST-RECREATION",
+        "severity": "high",
+        "entity": "WKSTN-22 | run_key | HKCU\\Software\\Lab\\Unwanted",
+        "first_seen_utc": "2026-04-22T09:00:00Z",
+        "last_seen_utc": "2026-04-22T09:05:00Z",
+        "evidence_records": [
+          5,
+          6
+        ],
+        "signal_contains": [
+          "deleted and recreated within 60 minutes"
+        ]
+      },
+      {
+        "rule_id": "PERSIST-UNAPPROVED-ENTRY",
+        "severity": "high",
+        "entity": "WKSTN-22 | run_key | HKCU\\Software\\Lab\\Unwanted",
+        "first_seen_utc": "2026-04-22T09:05:00Z",
+        "last_seen_utc": "2026-04-22T09:05:00Z",
+        "evidence_records": [
+          6
+        ],
+        "signal_contains": [
+          "artifact created",
+          "signer metadata: unsigned"
+        ]
+      },
+      {
+        "rule_id": "PERSIST-UNAPPROVED-ENTRY",
+        "severity": "medium",
+        "entity": "SRV-OLD | scheduled_task | \\Tasks\\Legacy",
+        "first_seen_utc": "2026-04-22T11:01:00Z",
+        "last_seen_utc": "2026-04-22T11:01:00Z",
+        "evidence_records": [
+          8
+        ],
+        "signal_contains": [
+          "artifact created",
+          "signer metadata: signed"
+        ]
+      }
+    ]
+  },
+  "cloud": {
+    "events_evaluated": 11,
+    "events_unique": 10,
+    "duplicate_events_suppressed": 1,
+    "time_window": "per successful change event",
+    "warnings": [],
+    "findings": [
+      {
+        "rule_id": "CLOUD-UNAPPROVED-ADMIN-GRANT",
+        "severity": "high",
+        "entity": "entra | role-example-1 | admin@lab.local",
+        "first_seen_utc": "2026-04-23T08:00:00Z",
+        "last_seen_utc": "2026-04-23T08:00:00Z",
+        "evidence_records": [
+          2
+        ],
+        "signal_contains": [
+          "successful role_grant with global_admin scope"
+        ]
+      },
+      {
+        "rule_id": "CLOUD-UNAPPROVED-ACCESS-KEY",
+        "severity": "medium",
+        "entity": "aws | access-key-example | svc-ci@lab.local",
+        "first_seen_utc": "2026-04-23T08:05:00Z",
+        "last_seen_utc": "2026-04-23T08:05:00Z",
+        "evidence_records": [
+          3
+        ],
+        "signal_contains": [
+          "successful access-key creation recorded"
+        ]
+      },
+      {
+        "rule_id": "CLOUD-UNAPPROVED-ADMIN-GRANT",
+        "severity": "high",
+        "entity": "entra | unapproved-app | operator@lab.local",
+        "first_seen_utc": "2026-04-23T08:15:00Z",
+        "last_seen_utc": "2026-04-23T08:15:00Z",
+        "evidence_records": [
+          8
+        ],
+        "signal_contains": [
+          "successful app_consent with privileged_app scope"
+        ]
+      },
+      {
+        "rule_id": "CLOUD-UNAPPROVED-ADMIN-GRANT",
+        "severity": "high",
+        "entity": "entra | pim-role-example | operator@lab.local",
+        "first_seen_utc": "2026-04-23T08:25:00Z",
+        "last_seen_utc": "2026-04-23T08:25:00Z",
+        "evidence_records": [
+          10
+        ],
+        "signal_contains": [
+          "successful pim_activation with admin scope"
+        ]
+      }
+    ]
+  },
+  "egress": {
+    "events_evaluated": 12,
+    "events_unique": 11,
+    "duplicate_events_suppressed": 1,
+    "time_window": "60-minute rolling outbound byte total",
+    "warnings": [
+      "cumulative session NO-BASE missing zero baseline",
+      "unquantified counter for session NO-METRIC"
+    ],
+    "findings": [
+      {
+        "rule_id": "EGRESS-HIGH-VOLUME",
+        "severity": "high",
+        "entity": "SRC-A -> 203.0.113.50",
+        "first_seen_utc": "2026-04-24T08:00:00Z",
+        "last_seen_utc": "2026-04-24T08:10:00Z",
+        "evidence_records": [
+          2,
+          3
+        ],
+        "signal_contains": [
+          "520000000 observed outbound incremental bytes",
+          "authorization (synthetic annotation): no"
+        ]
+      },
+      {
+        "rule_id": "EGRESS-HIGH-VOLUME",
+        "severity": "medium",
+        "entity": "SRC-E -> 203.0.113.11",
+        "first_seen_utc": "2026-04-24T10:00:00Z",
+        "last_seen_utc": "2026-04-24T10:10:00Z",
+        "evidence_records": [
+          8,
+          9
+        ],
+        "signal_contains": [
+          "600000000 observed outbound incremental bytes",
+          "authorization (synthetic annotation): unknown"
+        ]
+      }
+    ]
+  }
+}

@@ -44,7 +44,7 @@ def main(argv=None) -> int:
     parser = argparse.ArgumentParser(
         description="Offline synthetic evidence only; no live SIEM connection."
     )
-    parser.add_argument("--hunt", choices=("auth", "powershell"), required=True)
+    parser.add_argument("--hunt", choices=("auth", "powershell", "lateral", "persistence", "cloud", "egress"), required=True)
     parser.add_argument("--input", type=Path, required=True)
     parser.add_argument("--output", type=Path, help="Optional local JSON report path")
     args = parser.parse_args(argv)

@@ -1,0 +1,12 @@
+Timestamp,EventId,Provider,Actor,Target,Operation,Outcome,Approved,Scope
+2026-04-23T08:00:00Z,cl1,entra,admin@lab.local,role-example-1,role_grant,success,no,global_admin
+2026-04-23T08:05:00Z,cl2,aws,svc-ci@lab.local,access-key-example,access_key_create,success,no,standard
+2026-04-23T08:07:00Z,cl3,aws,svc-ci@lab.local,policy-example,policy_admin_grant,denied,no,admin
+2026-04-23T08:08:00Z,cl4,entra,operator@lab.local,pim-role-example,pim_request,success,no,admin
+2026-04-23T08:09:00Z,cl5,entra,operator@lab.local,pim-role-example,pim_activation,pending,no,admin
+2026-04-23T08:10:00Z,cl6,entra,security@lab.local,approved-app,app_consent,success,yes,privileged_app
+2026-04-23T08:15:00Z,cl7,entra,operator@lab.local,unapproved-app,app_consent,success,no,privileged_app
+2026-04-23T08:20:00Z,cl8,aws,operator@lab.local,read-only-role,role_grant,success,no,read_only
+2026-04-23T08:25:00Z,cl9,entra,operator@lab.local,pim-role-example,pim_activation,success,no,admin
+2026-04-23T08:15:00Z,cl7,entra,operator@lab.local,unapproved-app,app_consent,success,no,privileged_app
+2026-04-23T09:00:00Z,cl10,entra,operator@lab.local,document-example,read_resource,success,no,read_only

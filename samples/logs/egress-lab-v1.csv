@@ -1,0 +1,13 @@
+Timestamp,EventId,SourceHost,DestinationIP,SessionId,Direction,DestinationClass,CounterMode,Bytes,Approved
+2026-04-24T08:00:00Z,n1,SRC-A,203.0.113.50,SES-1,outbound,external,delta,220000000,no
+2026-04-24T08:10:00Z,n2,SRC-A,203.0.113.50,SES-1,outbound,external,delta,300000000,no
+2026-04-24T08:10:00Z,n2,SRC-A,203.0.113.50,SES-1,outbound,external,delta,300000000,no
+2026-04-24T08:15:00Z,n3,SRC-B,198.51.100.20,BACKUP-1,outbound,external,delta,900000000,yes
+2026-04-24T08:20:00Z,n4,SRC-C,203.0.113.99,INTERNAL-1,outbound,internal,delta,900000000,no
+2026-04-24T08:25:00Z,n5,SRC-D,203.0.113.98,INBOUND-1,inbound,external,delta,900000000,no
+2026-04-24T10:00:00Z,n6,SRC-E,203.0.113.11,CUM-1,outbound,external,cumulative,0,unknown
+2026-04-24T10:10:00Z,n7,SRC-E,203.0.113.11,CUM-1,outbound,external,cumulative,600000000,unknown
+2026-04-24T11:00:00Z,n8,SRC-F,198.51.100.62,NO-BASE,outbound,external,cumulative,700000000,no
+2026-04-24T11:10:00Z,n9,SRC-G,203.0.113.76,NO-METRIC,outbound,external,unknown,?,no
+2026-04-24T12:00:00Z,n10,SRC-H,203.0.113.77,LONG-1,outbound,external,delta,300000000,no
+2026-04-24T13:10:00Z,n11,SRC-H,203.0.113.77,LONG-1,outbound,external,delta,300000000,no

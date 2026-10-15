@@ -1,96 +1,94 @@
-# Threat Hunting Playbooks — Offline Evidence Lab
+# Threat Hunting Playbooks — Six Offline Evidence Hunts
 
-> An **educational security engineering portfolio project**, not a production SOC system. All included telemetry is synthetic. No customer environments, live security alerts, or actual compromises are claimed.
+**Security engineering portfolio lab** that turns six hypothesis-driven hunts into repeatable synthetic telemetry evaluations, independent expected outcomes, and auditable reports.
 
-This repo shows how to move from a behavior hypothesis to an **auditable finding**: input telemetry, deterministic evaluation, negative controls, decision rationale, evidence record references, and reproducible reports.
+> **Scope is explicitly offline and synthetic.** The Python evaluator is **not** a KQL interpreter, EDR agent, SIEM connector, confirmed-incident classifier, or real-world detection efficacy study. No external tenant, production telemetry, credentials, containment, malware execution, or customer investigations are involved.
 
-## What is actually implemented?
+## Capability and evidence matrix
 
-| Track | State | Evidence |
+| Hunt | Executable offline scenario | Evidence |
 |---|---|---|
-| Entra-style identity hunting (spray + failures followed by success) | **Offline implemented and tested** | [auth report](samples/reports/reproduced/auth-v1.md) |
-| Defender-style suspicious PowerShell activity | **Offline implemented and tested** | [PowerShell report](samples/reports/reproduced/powershell-v1.md) |
-| Lateral movement | **Documented hunt; not exercised with an offline fixture** | [playbook](hunts/lateral-movement.md) |
-| Data exfiltration | **Documented; schema-reviewed Sentinel proxy example only** | [playbook](hunts/data-exfiltration-indicators.md) |
-| Cloud compromise | **Documented; tenant and connector verification pending** | [playbook](hunts/cloud-account-compromise.md) |
-| Persistence | **Documented; offline evaluation pending** | [playbook](hunts/persistence-mechanisms.md) |
-| Additional Windows/network/cloud examples | **Illustrative only; not live-tested** | [query limitations](docs/query-contract.md) |
+| **Authentication** | Failure→success correlation and multi-identity password spraying with strict temporal ordering | [Reproduced auth report](samples/reports/reproduced/auth-v1.md) |
+| **PowerShell** | Encoded/obfuscated-command text signals and parent-process context | [Reproduced PowerShell report](samples/reports/reproduced/powershell-v1.md) |
+| **Lateral movement** | Successful TCP/445 connection → target network logon → service/WMI execution in strictly ordered 10-minute chain | [Reproduced lateral report](samples/reports/reproduced/lateral-v1.md) |
+| **Persistence** | Unapproved registry/task/service artifact changes and deletion/recreation in a 60-minute window | [Reproduced persistence report](samples/reports/reproduced/persistence-v1.md) |
+| **Cloud compromise** | Successful unapproved privileged changes and access-key creation, excluding failed and pending operations | [Reproduced cloud report](samples/reports/reproduced/cloud-v1.md) |
+| **Network egress** | Deduplicated high-volume outbound transfers, controlled byte-counter semantics, 60-minute rolling window | [Reproduced egress report](samples/reports/reproduced/egress-v1.md) |
 
-**Important:** The Python evaluator is **not** a KQL parser or a Microsoft Defender/Sentinel connector. Offline findings do not prove that the Markdown KQL returns identical records, compiles against a live tenant, or has measured sensitivity/precision.
+**Evidence status:** All six algorithms operate on defined CSV fixtures and have local regression tests. The corresponding Markdown KQL snippets are **still not live-tenant validated** and must not be represented as equivalent implementations.
 
-## Run it on Windows (Codex Desktop / PowerShell)
+## Reproduce all six offline cases
 
-From the cloned repository root:
+Requires only **Python 3.11+** and a local repository clone. Commands work in PowerShell, CMD, Linux shells, and macOS shells:
 
-```powershell
-python scripts/validate_playbooks.py
-python -m unittest discover -s tests -v
-python scripts/run_hunt.py --hunt auth --input samples/logs/auth-lab-v1.csv
-python scripts/run_hunt.py --hunt powershell --input samples/logs/powershell-lab-v1.csv
-python scripts/render_reports.py --check
+```bash
+python -B scripts/demo_hunts.py
+python -B -m unittest discover -s tests -v
+python -B scripts/validate_playbooks.py
+python -B scripts/render_reports.py --check
 ```
 
-On macOS/Linux, run the same Python commands; `make validate` is an optional wrapper.
+For one hunt and its complete JSON provenance:
 
-No Docker, SIEM tenant, paid API, log collection agent, cloud subscription, or third-party Python packages are required for these **offline** examples.
+```bash
+python -B scripts/run_hunt.py --hunt lateral --input samples/logs/lateral-lab-v1.csv
+python -B scripts/run_hunt.py --hunt persistence --input samples/logs/persistence-lab-v1.csv
+python -B scripts/run_hunt.py --hunt cloud --input samples/logs/cloud-lab-v1.csv
+python -B scripts/run_hunt.py --hunt egress --input samples/logs/egress-lab-v1.csv
+```
 
-## What the evaluator does
+Also supported: `--hunt auth` and `--hunt powershell` with their corresponding `*-lab-v1.csv` sources. Add `--output PATH.json` to the runner to write JSON atomically without overwriting the input.
 
-**Authentication:** From a synthetic `SigninLogs`-style CSV, distinguish invalid-password error `50126` from unrelated auth errors. Find (a) six or more failures spanning at least three identities from one IP in an inclusive 15-minute window and (b) five or more failures with timestamps **strictly earlier** than success for one identity/IP, at most 15 minutes earlier. Success resets the sequence. Failures tied with success are discarded; CSV position never establishes their temporal order. Other outcomes reset the sequence conservatively.
+To regenerate committed Markdown for all six:
 
-**PowerShell:** From `DeviceProcessEvents`-style CSV, examine executable, command-line indicators, and process parent; prioritize encoded/obfuscated execution when launched from an Office/script-host parent. Approved automation could still generate a review candidate.
+```bash
+python -B scripts/render_reports.py
+python -B scripts/render_reports.py --check
+```
 
-The evaluator refuses missing/duplicate columns, malformed rows, naive or out-of-range timestamps, oversized inputs, and unknown hunts. Reads are capped at the five-megabyte limit plus one byte. Every declared column must be structurally present; optional values may be empty. UTC evidence retains microseconds where present. It does not decode or execute payloads.
+CI runs tests on **Windows and Linux with Python 3.11 and 3.13**, compiles code, validates Markdown structure, and checks that generated reports exactly match the included synthetic CSVs. Branch protection requires those checks and resolved review threads before merging.
 
-JSON and Markdown evidence include schema/rule versions, effective parameters, normalized input SHA-256, event/finding counts, complete finding intervals, evidence record references, signals and review disposition. The CLI rejects output paths aliasing its input and replaces reports atomically. These controls establish reproducibility, **not cryptographic chain of custody**.
+## What the evaluator actually records
 
-## Evidence and integrity
+- Synthetic input content SHA-256 after documented UTF-8/BOM/newline normalization
+- UTC event timestamps (including microseconds), candidate start/end, CSV record ordinals
+- Rule identifiers and versions, effective thresholds/parameters, evaluated signals
+- Consistent `review required; not confirmed compromise` disposition
+- For the four Phase 2 hunts: unique/duplicate event counts and explicit data-quality warnings
+- Hand-authored expected outcome manifest for the new four hunts, alongside earlier independently authored JSON expectations for authentication/PowerShell
 
-- [Synthetic identity fixture](samples/logs/auth-lab-v1.csv) → [generated identity review](samples/reports/reproduced/auth-v1.md)
-- [Synthetic PowerShell fixture](samples/logs/powershell-lab-v1.csv) → [generated PowerShell review](samples/reports/reproduced/powershell-v1.md)
-- [Regression tests](tests/test_engine.py) test positive cases, benign noise, time boundaries, sorting, and schema failures.
-- [Independent expected results](tests/expected/auth-v1.json) and [PowerShell expectations](tests/expected/powershell-v1.json) are hand-authored contracts, not evaluator-generated snapshots. Correction tests cover timestamp ambiguity, input boundaries, output failures and report escaping.
-- [GitHub CI](.github/workflows/ci.yml) checks Python, Markdown, tests, and committed report reproducibility on Windows and Linux.
-- [Audit and engineering roadmap](docs/engineering-audit.md) records what is real, what is unverified, and next acceptance gates.
-- [Telemetry/query contract](docs/query-contract.md) explains vendor-specific schema assumptions.
-
-Older sample summaries in `samples/reports/` were **illustrative narratives** prepared before this reproducible evaluator; do not equate their counts with either new fixture. The `reproduced/` reports alone have automated input lineage.
-
-The Markdown validator checks **31 documents**, including six core hunts. Structural validation does not compile KQL. Required GitHub merge checks must be configured separately by the owner; see the [release safeguard configuration](docs/engineering-audit.md#release-safeguards-owner-action).
-
-## Hunt methodology
-
-1. Make a falsifiable hypothesis, identify the ATT&CK behavior, and define *how it could be wrong*.
-2. Prove necessary telemetry exists, check UTC/source timestamps, retention and gaps.
-3. Run a scoped query or offline evaluator; retain input hashes and time windows.
-4. Triage with independent evidence (process tree, authorization, identity, destination).
-5. Test expected suspicious and benign cases, plus boundary/negative controls.
-6. Escalate only after evidence meets a documented criterion. No automated containment here.
-7. Tune with a measured false-positive review and reproduce results.
-
-See [methodology](docs/threat-hunting-methodology.md).
+**Never treat a high-priority review candidate as a confirmed attacker action.** `Approved` is a synthetic scenario annotation rather than proven change-control evidence; host/pair joins may misassociate unrelated activity. Missing data, malformed schemas and uncertain counter semantics require conservative handling.
 
 ## Repository map
 
-```text
-huntlab/                  Python offline evaluator (2 implemented hunts)
-tests/                    Regression/negative test cases
-samples/logs/*-lab-v1.csv Synthetic example inputs for implemented hunts
-samples/reports/reproduced/ Generated evidence, checked for reproducibility
-hunts/                    6 primary Markdown hunt playbooks
-cloud/ network/ windows/  Additional illustrative scenarios
-queries/                  KQL reference collection (not live-validated)
-docs/                     Methodology, audit, query limitations
-scripts/                  CLI, reports, validation, formatter
-.github/workflows/        CI on push and pull requests
-```
+| Location | Purpose |
+|---|---|
+| [`huntlab/engine.py`](huntlab/engine.py) | Original auth/PowerShell implementations, strict CSV and deterministic output contract |
+| [`huntlab/extended.py`](huntlab/extended.py) | Four additional synthetic rule families with explicit sensor/field constraints |
+| [`samples/logs/`](samples/logs/) | Synthetic scenario logs and adversarial control fixtures |
+| [`samples/reports/reproduced/`](samples/reports/reproduced/) | Six deterministic evidence reports |
+| [`tests/`](tests/) | Regression, negative, boundary, provenance, and malformed-input tests |
+| [`tests/expected/`](tests/expected/) | Independently authored expected outcomes, not generated by the runtime |
+| [`hunts/`](hunts/) | Six broader hypothesis and analyst playbooks (KQL unverified) |
+| [`cloud/`](cloud/), [`windows/`](windows/), [`network/`](network/), [`queries/`](queries/) | Additional historical, illustrative query references |
+| [`docs/PHASE2_HUNTS.md`](docs/PHASE2_HUNTS.md) | Detailed Phase 2 schema, rules, limits, and response-handoff conditions |
+| [`docs/OFFLINE_LAB.md`](docs/OFFLINE_LAB.md) | Phase 1 contract and original rule behavior |
+| [`docs/query-contract.md`](docs/query-contract.md) | Why simulated evaluators do not prove KQL/SIEM compatibility |
+| [`docs/engineering-audit.md`](docs/engineering-audit.md) | Prior audit, corrections, and remaining roadmap |
 
-## Boundaries
+## Five-minute reviewer walkthrough
 
-- Only run this repository on synthetic or explicitly authorized sanitized telemetry; it is not configured to ingest real tenant data.
-- Do not introduce customer identifiers, credentials, access tokens, proprietary incident logs, or high-risk payloads into public fixtures or reports.
-- The examples provide **review candidates**, never a determination of compromise.
-- No alert-quality, enterprise coverage, time-to-detect, or production deployment claims are made.
-- Any KQL deployment needs separately documented connector, licensing, table schema, testing, threshold tuning, and approval.
+1. Pick lateral movement or egress from the capability matrix; read its falsifiable hypothesis.
+2. Inspect the input CSV, including benign controls, duplicate events, missing evidence, or failed operations.
+3. Run `python -B scripts/run_hunt.py ...` to see candidate intervals, exact evidence ordinals and rule parameters.
+4. Run the independent regression suite to demonstrate negative and boundary behavior.
+5. Check the associated reproduced report and CI provenance.
+6. Explain one **known blind spot** and what actual sensor/tenant evidence would be needed for promotion to a validated detection.
 
-Contribution and vulnerability reporting guidance: [CONTRIBUTING.md](CONTRIBUTING.md) · [SECURITY.md](SECURITY.md).
+For the adjacent [Incident Response Playbooks](https://github.com/farhan-shafee/incident-response-playbooks) project, a candidate can be a **proposed handoff for human triage**, not a confirmed incident or permission to execute containment. No cross-repository production integration is implied.
+
+## Integrity boundaries
+
+All provided values are invented lab data and use example-only identities/IP ranges. Do not commit actual secrets, customer information, or proprietary logs. The offline engine performs no network requests, payload execution or destructive operations. Incident response decisions and live KQL verification must be completed separately in authorized environments.
+
+[Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Methodology](docs/threat-hunting-methodology.md) · [MITRE ATT&CK](https://attack.mitre.org/)

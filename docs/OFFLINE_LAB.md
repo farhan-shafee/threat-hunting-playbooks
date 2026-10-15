@@ -2,6 +2,8 @@
 
 This is a **deterministic, synthetic-only teaching exercise**. It supports review of selected indicator logic without SIEM credentials or a paid service. It does not parse KQL and cannot validate queries in the historical playbooks.
 
+**Scope of this document:** Phase 1 authentication/PowerShell rule semantics and shared parser. For the four additional offline hunts (lateral movement, persistence, cloud administration, and network egress), their normalized CSV schemas, rule parameters, provenance v1.1, data-quality warnings, and nonclaims are specified in [Phase 2 Hunts](PHASE2_HUNTS.md). The old Phase 1 result schema remains at v1.0; the additional hunts use schema v1.1.
+
 ## Architecture
 
 ```text

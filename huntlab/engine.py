@@ -16,6 +16,8 @@ from itertools import groupby
 from pathlib import Path
 import re
 
+from .extended import EXT_RULE_IDS, EXT_RULE_PARAMETERS, EXT_SCHEMAS, WINDOWS, evaluate_extended
+
 MAX_INPUT_BYTES = 5_000_000
 MAX_RECORDS = 20_000
 
@@ -26,6 +28,7 @@ SCHEMAS = {
         "ProcessCommandLine", "InitiatingProcessFileName",
     ),
 }
+SCHEMAS.update(EXT_SCHEMAS)
 OFFICE_OR_SCRIPT_PARENTS = {
     "winword.exe", "excel.exe", "outlook.exe", "wscript.exe",
     "cscript.exe", "mshta.exe",
@@ -37,6 +40,10 @@ RULE_IDS = {
     "powershell": ("PS-SUSPICIOUS-EXECUTION",),
 }
 RULE_VERSIONS = {rule: "1.1.0" for rules in RULE_IDS.values() for rule in rules}
+RULE_IDS.update(EXT_RULE_IDS)
+RULE_VERSIONS.update({rule: "1.0.0" for rules in EXT_RULE_IDS.values() for rule in rules})
+# Reviewed Phase 2 behavior corrections; version these rules independently.
+RULE_VERSIONS.update({"PERSIST-RECREATION": "1.0.1", "EGRESS-HIGH-VOLUME": "1.0.1"})
 RULE_PARAMETERS = {
     "AUTH-FAILED-THEN-SUCCESS": {
         "minimum_failures": 5,
@@ -63,6 +70,7 @@ RULE_PARAMETERS = {
         "high_priority_parents": sorted(OFFICE_OR_SCRIPT_PARENTS),
     },
 }
+RULE_PARAMETERS.update(EXT_RULE_PARAMETERS)
 
 
 class HuntInputError(ValueError):
@@ -256,17 +264,28 @@ def _powershell_findings(rows: list[Row]) -> list[dict]:
 def run_hunt(hunt_id: str, source: str | Path) -> dict:
     """Return a deterministic, content-addressed finding report."""
     rows, digest = load_csv(hunt_id, Path(source))
-    findings = (
-        _auth_findings(rows) if hunt_id == "auth" else _powershell_findings(rows)
-    )
+    extra = None
+    if hunt_id == "auth":
+        findings = _auth_findings(rows)
+    elif hunt_id == "powershell":
+        findings = _powershell_findings(rows)
+    else:
+        findings, unique_events, duplicates, quality = evaluate_extended(
+            hunt_id, rows, _finding, HuntInputError
+        )
+        extra = {
+            "events_unique": unique_events,
+            "duplicate_events_suppressed": duplicates,
+            "data_quality_warnings": quality,
+        }
     findings.sort(
         key=lambda finding: (
             datetime.fromisoformat(finding["first_seen_utc"].replace("Z", "+00:00")),
             finding["rule_id"], finding["entity"],
         )
     )
-    return {
-        "result_schema_version": "1.0",
+    report = {
+        "result_schema_version": "1.0" if extra is None else "1.1",
         "rule_versions": {rule: RULE_VERSIONS[rule] for rule in RULE_IDS[hunt_id]},
         "effective_parameters": deepcopy({
             rule: RULE_PARAMETERS[rule] for rule in RULE_IDS[hunt_id]
@@ -279,3 +298,7 @@ def run_hunt(hunt_id: str, source: str | Path) -> dict:
         "time_window": "15 minutes" if hunt_id == "auth" else "per process event",
         "findings": findings,
     }
+    if extra is not None:
+        report["time_window"] = WINDOWS[hunt_id]
+        report.update(extra)
+    return report
