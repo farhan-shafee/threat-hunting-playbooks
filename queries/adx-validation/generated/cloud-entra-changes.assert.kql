@@ -1,7 +1,7 @@
 // GENERATED from the captured 2026-10-15 synthetic ADX execution.
 // Read-only in-memory datatable; NO Sentinel/Defender tenant execution.
 // Never treat this replay as proof of real sensor or connector coverage.
-let __SyntheticAnchor = bin(now() - 2h, 15m);
+let LabSyntheticAnchor = bin(now() - 2h, 15m);
 let AuditLogs = datatable(FixtureMinute:int, Id:string, OperationName:string, Result:string, InitiatedBy:dynamic, TargetResources:dynamic, CorrelationId:string)
 [
     11, "ev1", "Add member to role", "success", dynamic({"user":{"displayName":"lab-user"}}), dynamic([{"displayName":"lab-role"}]), "test-ev1",
@@ -10,9 +10,9 @@ let AuditLogs = datatable(FixtureMinute:int, Id:string, OperationName:string, Re
     16, "ev4", "Add member to role requested (PIM activation)", "success", dynamic({"user":{"displayName":"lab-user"}}), dynamic([{"displayName":"lab-role"}]), "test-ev4",
     18, "ev5", "Consent to application", "success", dynamic({"user":{"displayName":"lab-user"}}), dynamic([{"displayName":"lab-role"}]), "test-ev5"
 ]
-| extend TimeGenerated = __SyntheticAnchor + FixtureMinute * 1m
+| extend TimeGenerated = LabSyntheticAnchor + FixtureMinute * 1m
 | project-away FixtureMinute;
-let __SyntheticResults = materialize(
+let LabSyntheticResults = materialize(
 // SENTINEL / AuditLogs: completed high-interest Entra administration events.
 // OperationName spellings come from Microsoft Entra audit activity reference.
 // Result must indicate success. Neither unauthorized change nor account
@@ -42,10 +42,12 @@ AuditLogs
     Result, InitiatedBy, TargetResources, CorrelationId
 | order by TimeGenerated desc
 );
-let __Observed = toscalar(__SyntheticResults | count);
-let __Matched = toscalar(__SyntheticResults | where Id in ("ev1", "ev2", "ev5") and Result =~ "success" | count);
-let __ActualIds = toscalar(__SyntheticResults | summarize Ids=make_set(Id));
-let __ExpectedIds = dynamic(["ev1","ev2","ev5"]);
-print Scenario="cloud-entra-changes", Expected=3, Observed=__Observed, Matched=__Matched,
-  IdentityMatch=set_equals(__ActualIds, __ExpectedIds),
-  Verdict=iff(__Observed == 3 and __Matched == 3 and set_equals(__ActualIds, __ExpectedIds), "PASS", "FAIL")
+let LabObserved = toscalar(LabSyntheticResults | count);
+let LabMatched = toscalar(LabSyntheticResults | where Id in ("ev1", "ev2", "ev5") and Result =~ "success" | count);
+let LabActualIds = toscalar(LabSyntheticResults | summarize Ids=make_set(Id));
+let LabExpectedIds = dynamic(["ev1","ev2","ev5"]);
+let LabIdsEqual = array_length(set_difference(LabActualIds, LabExpectedIds)) == 0
+  and array_length(set_difference(LabExpectedIds, LabActualIds)) == 0;
+print Scenario="cloud-entra-changes", Expected=3, Observed=LabObserved, Matched=LabMatched,
+  IdentityMatch=LabIdsEqual,
+  Verdict=iff(LabObserved == 3 and LabMatched == 3 and LabIdsEqual, "PASS", "FAIL")

@@ -26,7 +26,7 @@ This project distinguishes three types of artifacts and does **not** claim parit
 
 ## ADX synthetic execution status
 
-The seven native-table KQL **expressions** were run against ephemeral inline synthetic datatables in an Azure Data Explorer free cluster on 2026-10-15, returning the expected reviewed candidate sets. Exact executed query text and human-transcribed counts are retained in [the ADX evidence documentation](ADX_SYNTHETIC_EXECUTION.md). Source-dependent runtime behavior in **real Sentinel or Defender security telemetry remains unverified**. The newly generated assertion KQL is statically checked, but its fresh-time replay has not yet been executed in ADX.
+The seven native-table KQL **expressions** were run against ephemeral inline synthetic datatables in an Azure Data Explorer free cluster on 2026-10-15, returning the expected reviewed candidate sets. Exact executed query text and human-transcribed counts are retained in [the ADX evidence documentation](ADX_SYNTHETIC_EXECUTION.md). Source-dependent runtime behavior in **real Sentinel or Defender security telemetry remains unverified**. The seven corrected generated assertion queries were also executed in Azure Data Explorer, each returning PASS with matching event identities; an intentionally wrong expected identity returned FAIL. Results are bound to the [manual assertion execution receipt](../evidence/adx-free-2026-10-15/assertion-runtime-receipt.json). This is not native Sentinel/Defender tenant validation.
 
 ## Reproducible curated KQL check
 

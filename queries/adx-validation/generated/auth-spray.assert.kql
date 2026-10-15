@@ -1,7 +1,7 @@
 // GENERATED from the captured 2026-10-15 synthetic ADX execution.
 // Read-only in-memory datatable; NO Sentinel/Defender tenant execution.
 // Never treat this replay as proof of real sensor or connector coverage.
-let __SyntheticAnchor = bin(now() - 2h, 15m);
+let LabSyntheticAnchor = bin(now() - 2h, 15m);
 let SigninLogs = datatable(FixtureMinute:int, Id:string, UserPrincipalName:string, IPAddress:string, ResultType:string, IsInteractive:bool)
 [
     1, "sp-0", "a@lab.local", "192.0.2.80", "50126", true,
@@ -17,9 +17,9 @@ let SigninLogs = datatable(FixtureMinute:int, Id:string, UserPrincipalName:strin
     4, "other-3", "a@lab.local", "192.0.2.81", "50126", true,
     5, "other-4", "a@lab.local", "192.0.2.81", "50126", true
 ]
-| extend TimeGenerated = __SyntheticAnchor + FixtureMinute * 1m
+| extend TimeGenerated = LabSyntheticAnchor + FixtureMinute * 1m
 | project-away FixtureMinute;
-let __SyntheticResults = materialize(
+let LabSyntheticResults = materialize(
 // SENTINEL / SigninLogs: fixed 15-minute BIN password-spray candidate.
 // Bin boundary misses are possible; this is NOT a sliding 15-minute window.
 // Only ResultType=50126 is counted; service-principal sign-ins are excluded.
@@ -40,10 +40,12 @@ SigninLogs
     FirstSeen, LastSeen, SampleIds
 | order by WindowStart desc
 );
-let __Observed = toscalar(__SyntheticResults | count);
-let __Matched = toscalar(__SyntheticResults | where IPAddress == "192.0.2.80" and FailureEvents == 6 and DistinctUsers == 3 | count);
-let __ActualIds = toscalar(__SyntheticResults | summarize Ids=make_set(IPAddress));
-let __ExpectedIds = dynamic(["192.0.2.80"]);
-print Scenario="auth-spray", Expected=1, Observed=__Observed, Matched=__Matched,
-  IdentityMatch=set_equals(__ActualIds, __ExpectedIds),
-  Verdict=iff(__Observed == 1 and __Matched == 1 and set_equals(__ActualIds, __ExpectedIds), "PASS", "FAIL")
+let LabObserved = toscalar(LabSyntheticResults | count);
+let LabMatched = toscalar(LabSyntheticResults | where IPAddress == "192.0.2.80" and FailureEvents == 6 and DistinctUsers == 3 | count);
+let LabActualIds = toscalar(LabSyntheticResults | summarize Ids=make_set(IPAddress));
+let LabExpectedIds = dynamic(["192.0.2.80"]);
+let LabIdsEqual = array_length(set_difference(LabActualIds, LabExpectedIds)) == 0
+  and array_length(set_difference(LabExpectedIds, LabActualIds)) == 0;
+print Scenario="auth-spray", Expected=1, Observed=LabObserved, Matched=LabMatched,
+  IdentityMatch=LabIdsEqual,
+  Verdict=iff(LabObserved == 1 and LabMatched == 1 and LabIdsEqual, "PASS", "FAIL")

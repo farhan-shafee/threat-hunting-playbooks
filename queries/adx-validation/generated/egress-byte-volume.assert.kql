@@ -1,7 +1,7 @@
 // GENERATED from the captured 2026-10-15 synthetic ADX execution.
 // Read-only in-memory datatable; NO Sentinel/Defender tenant execution.
 // Never treat this replay as proof of real sensor or connector coverage.
-let __SyntheticAnchor = bin(now() - 2h, 60m);
+let LabSyntheticAnchor = bin(now() - 2h, 60m);
 let CommonSecurityLog = datatable(FixtureMinute:int, SourceIP:string, DestinationIP:string, SentBytes:long)
 [
     10, "192.0.2.25", "203.0.113.8", 250000000,
@@ -9,9 +9,9 @@ let CommonSecurityLog = datatable(FixtureMinute:int, SourceIP:string, Destinatio
     30, "192.0.2.26", "203.0.113.7", 100000000,
     35, "192.0.2.27", "203.0.113.6", -1
 ]
-| extend TimeGenerated = __SyntheticAnchor + FixtureMinute * 1m
+| extend TimeGenerated = LabSyntheticAnchor + FixtureMinute * 1m
 | project-away FixtureMinute;
-let __SyntheticResults = materialize(
+let LabSyntheticResults = materialize(
 // SENTINEL / CommonSecurityLog: connector-dependent sent-byte volume pivot.
 // Hourly calendar bins != sliding 60-minute offline rule. No vendor-neutral
 // dedup, cumulative-to-delta conversion, NAT attribution, outbound-direction
@@ -28,10 +28,12 @@ CommonSecurityLog
     SourceEvents, FirstSeen, LastSeen
 | order by ObservedSentBytes desc
 );
-let __Observed = toscalar(__SyntheticResults | count);
-let __Matched = toscalar(__SyntheticResults | where SourceIP == "192.0.2.25" and DestinationIP == "203.0.113.8" and ObservedSentBytes == 550000000 and SourceEvents == 2 | count);
-let __ActualIds = toscalar(__SyntheticResults | summarize Ids=make_set(SourceIP));
-let __ExpectedIds = dynamic(["192.0.2.25"]);
-print Scenario="egress-byte-volume", Expected=1, Observed=__Observed, Matched=__Matched,
-  IdentityMatch=set_equals(__ActualIds, __ExpectedIds),
-  Verdict=iff(__Observed == 1 and __Matched == 1 and set_equals(__ActualIds, __ExpectedIds), "PASS", "FAIL")
+let LabObserved = toscalar(LabSyntheticResults | count);
+let LabMatched = toscalar(LabSyntheticResults | where SourceIP == "192.0.2.25" and DestinationIP == "203.0.113.8" and ObservedSentBytes == 550000000 and SourceEvents == 2 | count);
+let LabActualIds = toscalar(LabSyntheticResults | summarize Ids=make_set(SourceIP));
+let LabExpectedIds = dynamic(["192.0.2.25"]);
+let LabIdsEqual = array_length(set_difference(LabActualIds, LabExpectedIds)) == 0
+  and array_length(set_difference(LabExpectedIds, LabActualIds)) == 0;
+print Scenario="egress-byte-volume", Expected=1, Observed=LabObserved, Matched=LabMatched,
+  IdentityMatch=LabIdsEqual,
+  Verdict=iff(LabObserved == 1 and LabMatched == 1 and LabIdsEqual, "PASS", "FAIL")

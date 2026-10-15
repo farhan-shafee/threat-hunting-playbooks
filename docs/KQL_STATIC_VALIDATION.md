@@ -49,7 +49,7 @@ The PowerShell verifier retrieves the SHA-256-verified Microsoft NuGet `.nupkg` 
 
 ## ADX synthetic replay extension
 
-A separate [human-observed October 2026 ADX synthetic execution receipt](ADX_SYNTHETIC_EXECUTION.md) preserves the exact seven inline datatable queries and their manually checked result grids. The replay tool rebuilds **seven fresh-time KQL samples plus seven PASS/FAIL assertion queries**, with SHA-256 capture integrity and exact canonical KQL synchronization. Microsoft's Kusto.Language parser now statically checks all **21** KQL texts (7 originals, 14 derived) in CI. **The newly generated assertion queries have not themselves been cloud-executed or signed by a tenant.**
+A separate [human-observed October 2026 ADX synthetic execution receipt](ADX_SYNTHETIC_EXECUTION.md) preserves the exact seven inline datatable queries and their manually checked result grids. The replay tool rebuilds **seven fresh-time KQL samples plus seven PASS/FAIL assertion queries**, with SHA-256 capture integrity and exact canonical KQL synchronization. Microsoft's Kusto.Language parser now statically checks all **21** KQL texts (7 originals, 14 derived) in CI. **The corrected seven assertion queries were also executed against inline synthetic datatables in Azure Data Explorer on October 15, 2026 and returned PASS; an intentionally wrong identity returned FAIL.** The [manual runtime receipt](../evidence/adx-free-2026-10-15/assertion-runtime-receipt.json) binds those observations to exact assertion-query hashes. This is **not** a native Sentinel/Defender tenant validation or signed service export.
 
 ## What remains blocked
 

@@ -1,7 +1,7 @@
 // GENERATED from the captured 2026-10-15 synthetic ADX execution.
 // Read-only in-memory datatable; NO Sentinel/Defender tenant execution.
 // Never treat this replay as proof of real sensor or connector coverage.
-let __SyntheticAnchor = bin(now() - 2h, 60m);
+let LabSyntheticAnchor = bin(now() - 2h, 60m);
 let CommonSecurityLog = datatable(FixtureMinute:int, SourceIP:string, DestinationIP:string, SentBytes:long)
 [
     10, "192.0.2.25", "203.0.113.8", 250000000,
@@ -9,7 +9,7 @@ let CommonSecurityLog = datatable(FixtureMinute:int, SourceIP:string, Destinatio
     30, "192.0.2.26", "203.0.113.7", 100000000,
     35, "192.0.2.27", "203.0.113.6", -1
 ]
-| extend TimeGenerated = __SyntheticAnchor + FixtureMinute * 1m
+| extend TimeGenerated = LabSyntheticAnchor + FixtureMinute * 1m
 | project-away FixtureMinute;
 // SENTINEL / CommonSecurityLog: connector-dependent sent-byte volume pivot.
 // Hourly calendar bins != sliding 60-minute offline rule. No vendor-neutral

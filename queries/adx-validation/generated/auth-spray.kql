@@ -1,7 +1,7 @@
 // GENERATED from the captured 2026-10-15 synthetic ADX execution.
 // Read-only in-memory datatable; NO Sentinel/Defender tenant execution.
 // Never treat this replay as proof of real sensor or connector coverage.
-let __SyntheticAnchor = bin(now() - 2h, 15m);
+let LabSyntheticAnchor = bin(now() - 2h, 15m);
 let SigninLogs = datatable(FixtureMinute:int, Id:string, UserPrincipalName:string, IPAddress:string, ResultType:string, IsInteractive:bool)
 [
     1, "sp-0", "a@lab.local", "192.0.2.80", "50126", true,
@@ -17,7 +17,7 @@ let SigninLogs = datatable(FixtureMinute:int, Id:string, UserPrincipalName:strin
     4, "other-3", "a@lab.local", "192.0.2.81", "50126", true,
     5, "other-4", "a@lab.local", "192.0.2.81", "50126", true
 ]
-| extend TimeGenerated = __SyntheticAnchor + FixtureMinute * 1m
+| extend TimeGenerated = LabSyntheticAnchor + FixtureMinute * 1m
 | project-away FixtureMinute;
 // SENTINEL / SigninLogs: fixed 15-minute BIN password-spray candidate.
 // Bin boundary misses are possible; this is NOT a sliding 15-minute window.

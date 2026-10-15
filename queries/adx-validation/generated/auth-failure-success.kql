@@ -1,7 +1,7 @@
 // GENERATED from the captured 2026-10-15 synthetic ADX execution.
 // Read-only in-memory datatable; NO Sentinel/Defender tenant execution.
 // Never treat this replay as proof of real sensor or connector coverage.
-let __SyntheticAnchor = bin(now() - 2h, 15m);
+let LabSyntheticAnchor = bin(now() - 2h, 15m);
 let SigninLogs = datatable(FixtureMinute:int, Id:string, UserPrincipalName:string, IPAddress:string, ResultType:string, IsInteractive:bool)
 [
     14, "a-f1", "alice@lab.local", "192.0.2.10", "50126", true,
@@ -18,7 +18,7 @@ let SigninLogs = datatable(FixtureMinute:int, Id:string, UserPrincipalName:strin
     18, "b-f4", "bob@lab.local", "192.0.2.11", "50126", true,
     19, "b-f5", "bob@lab.local", "192.0.2.11", "50126", true
 ]
-| extend TimeGenerated = __SyntheticAnchor + FixtureMinute * 1m
+| extend TimeGenerated = LabSyntheticAnchor + FixtureMinute * 1m
 | project-away FixtureMinute;
 // SENTINEL / SigninLogs: strictly earlier interactive invalid-password failures
 // followed by a success for the same user and source IP. Read-only candidate.

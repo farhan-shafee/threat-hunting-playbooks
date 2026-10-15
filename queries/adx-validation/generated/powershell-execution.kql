@@ -1,7 +1,7 @@
 // GENERATED from the captured 2026-10-15 synthetic ADX execution.
 // Read-only in-memory datatable; NO Sentinel/Defender tenant execution.
 // Never treat this replay as proof of real sensor or connector coverage.
-let __SyntheticAnchor = bin(now() - 2h, 15m);
+let LabSyntheticAnchor = bin(now() - 2h, 15m);
 let DeviceProcessEvents = datatable(FixtureMinute:int, DeviceName:string, AccountName:string, FileName:string, ProcessCommandLine:string, InitiatingProcessFileName:string, ReportId:long)
 [
     0, "WORKSTATION-1", "alice", "powershell.exe", "powershell.exe -enc QQ==", "WINWORD.EXE", 101,
@@ -9,7 +9,7 @@ let DeviceProcessEvents = datatable(FixtureMinute:int, DeviceName:string, Accoun
     4, "WORKSTATION-3", "charlie", "powershell.exe", "powershell.exe -NoProfile Write-Output benign", "explorer.exe", 103,
     6, "WORKSTATION-4", "dave", "cmd.exe", "cmd.exe /c echo invoke-expression", "explorer.exe", 104
 ]
-| extend Timestamp = __SyntheticAnchor + FixtureMinute * 1m
+| extend Timestamp = LabSyntheticAnchor + FixtureMinute * 1m
 | project-away FixtureMinute;
 // DEFENDER XDR / DeviceProcessEvents: command-line and parent-process pivot.
 // Candidate text signals only: neither encoded execution nor compromise

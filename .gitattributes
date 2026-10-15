@@ -1,6 +1,7 @@
 # Content-addressed synthetic ADX captures: checkout must preserve LF bytes.
 evidence/adx-free-2026-10-15/executed/*.kql text eol=lf
 evidence/adx-free-2026-10-15/receipt.json text eol=lf
+evidence/adx-free-2026-10-15/assertion-runtime-receipt.json text eol=lf
 queries/adx-validation/generated/*.kql text eol=lf
 scripts/build_adx_synthetic_queries.py text eol=lf
 tests/test_adx_synthetic_replay.py text eol=lf

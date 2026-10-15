@@ -42,11 +42,31 @@ pwsh -NoProfile -File scripts/validate_kql_schemas.ps1
 
 `--check` is strictly read-only. `--write` regenerates only derived KQL files; it does not modify the original captures, observation receipt or canonical query sources. GitHub CI checks deterministic outputs and invokes Microsoft's pinned Kusto.Language parser for static syntax and curated-schema semantics across **7 original + 14 generated KQL files**. CI does **not** call Azure.
 
-## Optional future live synthetic assertion run
+## October 15 — runtime verification of all seven generated assertions
+
+After the original seven canonical-query exercises, all seven **corrected generated assertion variants were also executed** against temporary synthetic `datatable` rows in your Azure Data Explorer free cluster. All seven returned `PASS` with equal expected, observed and matched counts and `IdentityMatch=true`.
+
+| Assertion KQL | Expected / observed / matched | Identity matched | Verdict |
+|---|---|---|---|
+| `auth-failure-success.assert.kql` | 1 / 1 / 1 | true | PASS |
+| `auth-spray.assert.kql` | 1 / 1 / 1 | true | PASS |
+| `powershell-execution.assert.kql` | 2 / 2 / 2 | true | PASS |
+| `lateral-execution-pivot.assert.kql` | 2 / 2 / 2 | true | PASS |
+| `persistence-autoruns.assert.kql` | 2 / 2 / 2 | true | PASS |
+| `cloud-entra-changes.assert.kql` | 3 / 3 / 3 | true | PASS |
+| `egress-byte-volume.assert.kql` | 1 / 1 / 1 | true | PASS |
+
+A separate deliberately incorrect expected identity for the authentication assertion yielded `IdentityMatch=false` and `Verdict=FAIL` even while its event count matched. This verifies that count-only passing isn't enough.
+
+The first cloud-side run exposed **two runtime defects that local static analysis had missed**: an unsupported `set_equals()` call and invalid generated names starting with `__`. The corrected assertions use **two supported directional `set_difference()` checks**, each empty, and `Lab...` variable names. Regression tests prevent those defects from recurring.
+
+The exact corrected KQL files are bound by SHA-256 to the [human-observed assertion execution receipt](../evidence/adx-free-2026-10-15/assertion-runtime-receipt.json). The receipt is a manual transcription from ADX result grids, **not an API export, signed forensic record, or native Microsoft Sentinel/Defender execution**. Screenshots from an authenticated browser session were not committed.
+
+## Repeat the synthetic assertion runs
 
 Sign in yourself to [Azure Data Explorer](https://dataexplorer.azure.com/). In a blank query editor, paste the entire contents of one generated `.assert.kql` file and execute it using the free cluster. It is a self-contained, read-only, in-memory fixture. Verify one result row with `Verdict=PASS`, `IdentityMatch=true` and the recorded `Expected=Observed=Matched` values. Repeat for other scenarios.
 
-The generated assertion variants have **not** been claimed to have executed in the October 15 session. Only the captured original 7 queries were observed executing. Future ADX runs must independently verify their assertion verdicts; failures require investigation, not a claim of successful validation.
+The **corrected** assertion variants were all executed later on October 15 and returned PASS, as recorded above. Any **subsequent edited revision** requires its own new runtime evidence; matching static tests alone cannot justify inheriting the earlier PASS. Future ADX runs should verify their assertion verdicts independently, and failures must be investigated.
 
 ## Remaining qualification gates
 
@@ -57,4 +77,4 @@ The generated assertion variants have **not** been claimed to have executed in t
 
 To promote against actual security telemetry, follow [native live validation](LIVE_KQL_VALIDATION_GATE.md).
 
-**Statuses:** `ADX_SYNTHETIC_EXECUTED_SEVEN_OBSERVED` / `REPLAY_STATIC_VALIDATED_ASSERTIONS_NOT_RUN` / `NATIVE_SENTINEL_DEFENDER_NOT_RUN`.
+**Statuses:** `ADX_CANONICAL_SYNTHETIC_EXECUTED_7_OF_7` / `ADX_ASSERTIONS_GUI_EXECUTED_7_PASS_NEGATIVE_FAIL` / `NATIVE_SENTINEL_DEFENDER_NOT_RUN`.

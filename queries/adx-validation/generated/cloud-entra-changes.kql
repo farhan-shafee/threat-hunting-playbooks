@@ -1,7 +1,7 @@
 // GENERATED from the captured 2026-10-15 synthetic ADX execution.
 // Read-only in-memory datatable; NO Sentinel/Defender tenant execution.
 // Never treat this replay as proof of real sensor or connector coverage.
-let __SyntheticAnchor = bin(now() - 2h, 15m);
+let LabSyntheticAnchor = bin(now() - 2h, 15m);
 let AuditLogs = datatable(FixtureMinute:int, Id:string, OperationName:string, Result:string, InitiatedBy:dynamic, TargetResources:dynamic, CorrelationId:string)
 [
     11, "ev1", "Add member to role", "success", dynamic({"user":{"displayName":"lab-user"}}), dynamic([{"displayName":"lab-role"}]), "test-ev1",
@@ -10,7 +10,7 @@ let AuditLogs = datatable(FixtureMinute:int, Id:string, OperationName:string, Re
     16, "ev4", "Add member to role requested (PIM activation)", "success", dynamic({"user":{"displayName":"lab-user"}}), dynamic([{"displayName":"lab-role"}]), "test-ev4",
     18, "ev5", "Consent to application", "success", dynamic({"user":{"displayName":"lab-user"}}), dynamic([{"displayName":"lab-role"}]), "test-ev5"
 ]
-| extend TimeGenerated = __SyntheticAnchor + FixtureMinute * 1m
+| extend TimeGenerated = LabSyntheticAnchor + FixtureMinute * 1m
 | project-away FixtureMinute;
 // SENTINEL / AuditLogs: completed high-interest Entra administration events.
 // OperationName spellings come from Microsoft Entra audit activity reference.

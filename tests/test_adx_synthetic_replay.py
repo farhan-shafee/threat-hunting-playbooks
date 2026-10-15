@@ -7,6 +7,7 @@ compiles the generated KQL bundles under the existing CI matrix.
 from __future__ import annotations
 
 import hashlib
+import json
 import io
 from contextlib import redirect_stderr
 from pathlib import Path
@@ -63,15 +64,27 @@ class AdxSyntheticReplayTests(unittest.TestCase):
                 replay, assertion = lab.build(scenario)
                 canonical = (lab.NATIVE / scenario["file"]).read_text(encoding="utf-8")
                 self.assertTrue(replay.endswith(canonical.rstrip() + "\n"))
-                self.assertIn('let __SyntheticAnchor = bin(now() - 2h, ', replay)
+                self.assertIn('let LabSyntheticAnchor = bin(now() - 2h, ', replay)
                 self.assertIn(f'let {scenario["table"]} = datatable(', replay)
                 self.assertIn("| project-away FixtureMinute", replay)
                 self.assertNotIn("datetime(2026-10-15T", replay)
                 self.assertNotIn("kusto.windows.net", replay)
-                self.assertIn("let __SyntheticResults = materialize(", assertion)
+                self.assertIn("let LabSyntheticResults = materialize(", assertion)
                 self.assertIn("Verdict=iff(", assertion)
                 self.assertIn(scenario["match"], assertion)
-                self.assertIn("IdentityMatch=set_equals(", assertion)
+                self.assertNotIn("set_equals(", assertion)
+                self.assertNotRegex(assertion, r"(?m)^\s*let\s+__")
+                self.assertNotRegex(replay, r"(?m)^\s*let\s+__")
+                self.assertIn(
+                    "array_length(set_difference(LabActualIds, LabExpectedIds)) == 0",
+                    assertion,
+                )
+                self.assertIn(
+                    "array_length(set_difference(LabExpectedIds, LabActualIds)) == 0",
+                    assertion,
+                )
+                self.assertIn("IdentityMatch=LabIdsEqual", assertion)
+                self.assertIn("and LabIdsEqual, \"PASS\", \"FAIL\"", assertion)
                 self.assertIn(
                     "make_set(" + scenario["identity_field"] + ")", assertion
                 )
@@ -87,6 +100,41 @@ class AdxSyntheticReplayTests(unittest.TestCase):
             with self.subTest(file=filename):
                 self.assertEqual((lab.REPLAY / filename).read_text(encoding="utf-8"), rendered)
                 self.assertTrue(filename.endswith(".kql"))
+
+    def test_azure_runtime_receipt_binds_to_exact_assertion_hashes(self):
+        path = lab.EVIDENCE / "assertion-runtime-receipt.json"
+        receipt = json.loads(path.read_text(encoding="utf-8"))
+        self.assertEqual(
+            receipt["status"], "SEVEN_ASSERTION_QUERIES_GUI_EXECUTED_PASS"
+        )
+        self.assertEqual(len(receipt["scenarios"]), 7)
+        self.assertEqual(
+            {s["scenario"] + ".assert.kql" for s in receipt["scenarios"]},
+            {path.name for path in lab.REPLAY.glob("*.assert.kql")},
+        )
+        for item in receipt["scenarios"]:
+            with self.subTest(scenario=item["scenario"]):
+                source = lab.REPLAY / (item["scenario"] + ".assert.kql")
+                self.assertEqual(
+                    hashlib.sha256(source.read_bytes()).hexdigest(),
+                    item["assertion_sha256"],
+                )
+                self.assertEqual(item["verdict"], "PASS")
+                self.assertIs(item["identity_match"], True)
+                self.assertEqual(
+                    item["expected"], item["observed"]
+                )
+                self.assertEqual(
+                    item["expected"], item["matched"]
+                )
+        negative = receipt["negative_control"]
+        self.assertEqual(negative["verdict"], "FAIL")
+        self.assertIs(negative["identity_match"], False)
+        self.assertEqual(negative["expected"], negative["observed"])
+        self.assertEqual(negative["expected"], negative["matched"])
+        scope = receipt["scope"]
+        self.assertIs(scope["sentinel_tenant_execution"], False)
+        self.assertIs(scope["defender_xdr_tenant_execution"], False)
 
     def test_read_only_check_does_not_change_executed_files(self):
         before = {

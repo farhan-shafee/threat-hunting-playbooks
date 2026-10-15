@@ -163,12 +163,12 @@ def build(scenario: dict) -> tuple[str, str]:
         "// GENERATED from the captured 2026-10-15 synthetic ADX execution.\n"
         "// Read-only in-memory datatable; NO Sentinel/Defender tenant execution.\n"
         "// Never treat this replay as proof of real sensor or connector coverage.\n"
-        f"let __SyntheticAnchor = bin(now() - 2h, {bin_minutes}m);\n"
+        f"let LabSyntheticAnchor = bin(now() - 2h, {bin_minutes}m);\n"
         f"let {table} = datatable(FixtureMinute:int, {other_columns})\n"
         "[\n"
         f"{converted}\n"
         "]\n"
-        f"| extend {timestamp_col} = __SyntheticAnchor + FixtureMinute * 1m\n"
+        f"| extend {timestamp_col} = LabSyntheticAnchor + FixtureMinute * 1m\n"
         "| project-away FixtureMinute;\n"
     )
     native = (NATIVE / filename).read_text(encoding="utf-8")
@@ -183,18 +183,20 @@ def build(scenario: dict) -> tuple[str, str]:
     expected_ids = json.dumps(scenario["expected_identity_values"], separators=(",", ":"))
     assertions = (
         preamble + native_lets
-        + "let __SyntheticResults = materialize(\n" + native_final + "\n);\n"
-        + "let __Observed = toscalar(__SyntheticResults | count);\n"
-        + "let __Matched = toscalar(__SyntheticResults | where " + clause
+        + "let LabSyntheticResults = materialize(\n" + native_final + "\n);\n"
+        + "let LabObserved = toscalar(LabSyntheticResults | count);\n"
+        + "let LabMatched = toscalar(LabSyntheticResults | where " + clause
         + " | count);\n"
-        + "let __ActualIds = toscalar(__SyntheticResults | summarize "
+        + "let LabActualIds = toscalar(LabSyntheticResults | summarize "
         + "Ids=make_set(" + identity_field + "));\n"
-        + "let __ExpectedIds = dynamic(" + expected_ids + ");\n"
+        + "let LabExpectedIds = dynamic(" + expected_ids + ");\n"
+        + "let LabIdsEqual = array_length(set_difference(LabActualIds, LabExpectedIds)) == 0\n"
+        + "  and array_length(set_difference(LabExpectedIds, LabActualIds)) == 0;\n"
         + 'print Scenario="' + filename[:-4] + '", Expected=' + str(n)
-        + ', Observed=__Observed, Matched=__Matched,\n'
-        + '  IdentityMatch=set_equals(__ActualIds, __ExpectedIds),\n'
-        + '  Verdict=iff(__Observed == ' + str(n) + ' and __Matched == '
-        + str(n) + ' and set_equals(__ActualIds, __ExpectedIds), "PASS", "FAIL")\n'
+        + ', Observed=LabObserved, Matched=LabMatched,\n'
+        + '  IdentityMatch=LabIdsEqual,\n'
+        + '  Verdict=iff(LabObserved == ' + str(n) + ' and LabMatched == '
+        + str(n) + ' and LabIdsEqual, "PASS", "FAIL")\n'
     )
     return replay, assertions
 
