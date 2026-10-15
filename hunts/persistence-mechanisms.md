@@ -12,13 +12,32 @@ Identify suspicious persistence artifacts that survive reboot or user logoff.
 - Endpoint process telemetry
 
 ## SIEM Query Examples
+
+> **Status: Microsoft vendor-schema-reviewed static candidates, NOT executed in an authorized Sentinel/Defender tenant.**
+> These are not claimed equivalent to the synthetic Python detectors.
+
+### Registry autorun entries including direct executables
+
+Source: [`queries/schema-reviewed/persistence-autoruns.kql`](../queries/schema-reviewed/persistence-autoruns.kql). Native table: `DeviceRegistryEvents`.
+
 ```kql
+// DEFENDER XDR / DeviceRegistryEvents: Windows autorun registry changes.
+// RegistryValueData is deliberately NOT filtered by script keywords;
+// direct unfamiliar executable paths must remain reviewable.
+// Does NOT detect all task or service creation; requires DeviceEvents/Windows logs.
 DeviceRegistryEvents
-| where RegistryKey has_any ("\\Run", "\\RunOnce", "Schedule\\TaskCache")
-| where RegistryValueData has_any ("powershell", "cmd.exe", "wscript", "mshta", "http")
-| project Timestamp, DeviceName, RegistryKey, RegistryValueName, RegistryValueData, InitiatingProcessFileName
+| where Timestamp >= ago(1d)
+| where isnotempty(RegistryKey)
+| where RegistryKey contains @"\CurrentVersion\Run"
+    or RegistryKey contains @"\CurrentVersion\RunOnce"
+    or RegistryKey contains @"\Schedule\TaskCache"
+| project Timestamp, DeviceName, ActionType, RegistryKey,
+    RegistryValueName, RegistryValueData,
+    InitiatingProcessFileName, InitiatingProcessAccountName, ReportId
 | order by Timestamp desc
 ```
+
+**Important limitation:** No validated service/task-creation coverage; ActionType values need in-portal review.
 
 ## Expected Results
 - Software updater autoruns

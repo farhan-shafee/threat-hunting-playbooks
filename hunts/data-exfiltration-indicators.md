@@ -15,20 +15,37 @@ Identify byte-volume anomalies and investigate whether transfers represent unaut
 
 ## SIEM Query Examples
 
+> **Status: Microsoft vendor-schema-reviewed static candidates, NOT executed in an authorized Sentinel/Defender tenant.**
+> These are not claimed equivalent to the synthetic Python detectors.
+
+### Connector-dependent calendar-hour sent-byte volume
+
+Source: [`queries/schema-reviewed/egress-byte-volume.kql`](../queries/schema-reviewed/egress-byte-volume.kql). Native table: `CommonSecurityLog`.
+
 ```kql
+// SENTINEL / CommonSecurityLog: connector-dependent sent-byte volume pivot.
+// Hourly calendar bins != sliding 60-minute offline rule. No vendor-neutral
+// dedup, cumulative-to-delta conversion, NAT attribution, outbound-direction
+// verification or external-destination/approval proof is supplied here.
 CommonSecurityLog
 | where TimeGenerated >= ago(1d)
 | where isnotempty(SourceIP) and isnotempty(DestinationIP)
 | where isnotnull(SentBytes) and SentBytes >= 0
-| summarize OutboundBytes=sum(SentBytes), Sessions=count()
-    by SourceIP, DestinationIP, bin(TimeGenerated, 1h)
-| where OutboundBytes > 500000000
-| order by OutboundBytes desc
+| summarize ObservedSentBytes = sum(SentBytes), SourceEvents = count(),
+    FirstSeen = min(TimeGenerated), LastSeen = max(TimeGenerated)
+    by SourceIP, DestinationIP, WindowStart = bin(TimeGenerated, 1h)
+| where ObservedSentBytes >= 500000000
+| project WindowStart, SourceIP, DestinationIP, ObservedSentBytes,
+    SourceEvents, FirstSeen, LastSeen
+| order by ObservedSentBytes desc
 ```
 
-This assumes `SentBytes` is mapped from actual outbound transfer volumes on the relevant appliance. Connector-specific semantics, firewall retry duplicates, VPN egress, and NAT can invalidate this assumption. A threshold exceedance does **not** prove exfiltration.
+**Important limitation:** Not sliding 60-minute, not vetted for transfer direction, external destination, deduplication, or counter resets.
 
 ## Expected Results
+
+The query is a **calendar-hour SentBytes pivot**, not verified outbound/external traffic or an equivalent implementation of the offline sliding 60-minute detector. Validate connector byte direction, counter semantics, NAT/proxy rewriting, duplicate records, and destination classification before relying on the results.
+
 - Approved backups, bulk file movement, patch distribution, and media transfers.
 - Potential unapproved high-volume outbound sessions requiring triage.
 

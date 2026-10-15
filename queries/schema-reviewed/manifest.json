@@ -1,0 +1,139 @@
+{
+  "schema_manifest_version": "1.0",
+  "validation_status": "Vendor Kusto.Language syntax/semantic analysis against curated official-source column subset; no tenant query execution or query/heuristic parity",
+  "kusto_language_package": {
+    "id": "Microsoft.Azure.Kusto.Language",
+    "version": "12.4.1",
+    "archive_sha256": "154c176ac9c1c4ae9cf0bc53b74354c9d35798ff587f81fe6e0005028a0a1961"
+  },
+  "tables": {
+    "SigninLogs": {
+      "schema": "(TimeGenerated:datetime, ResultType:string, Id:string, UserPrincipalName:string, IPAddress:string, IsInteractive:bool)",
+      "platform": "Microsoft Sentinel / Azure Monitor",
+      "reference": "https://learn.microsoft.com/en-us/azure/azure-monitor/reference/tables/signinlogs"
+    },
+    "DeviceProcessEvents": {
+      "schema": "(Timestamp:datetime, DeviceName:string, AccountName:string, FileName:string, ProcessCommandLine:string, InitiatingProcessFileName:string, ReportId:long)",
+      "platform": "Microsoft Defender XDR advanced hunting",
+      "reference": "https://learn.microsoft.com/en-us/defender-xdr/advanced-hunting-deviceprocessevents-table"
+    },
+    "DeviceRegistryEvents": {
+      "schema": "(Timestamp:datetime, DeviceName:string, ActionType:string, RegistryKey:string, RegistryValueName:string, RegistryValueData:string, InitiatingProcessFileName:string, InitiatingProcessAccountName:string, ReportId:long)",
+      "platform": "Microsoft Defender XDR advanced hunting",
+      "reference": "https://learn.microsoft.com/en-us/defender-xdr/advanced-hunting-deviceregistryevents-table"
+    },
+    "AuditLogs": {
+      "schema": "(TimeGenerated:datetime, Id:string, OperationName:string, Result:string, InitiatedBy:dynamic, TargetResources:dynamic, CorrelationId:string)",
+      "platform": "Microsoft Sentinel / Azure Monitor",
+      "reference": "https://learn.microsoft.com/en-us/azure/azure-monitor/reference/tables/auditlogs"
+    },
+    "CommonSecurityLog": {
+      "schema": "(TimeGenerated:datetime, SourceIP:string, DestinationIP:string, SentBytes:long)",
+      "platform": "Microsoft Sentinel / Azure Monitor",
+      "reference": "https://learn.microsoft.com/en-us/azure/azure-monitor/reference/tables/commonsecuritylog"
+    }
+  },
+  "queries": [
+    {
+      "file": "auth-failure-success.kql",
+      "hunt": "auth",
+      "playbook": "hunts/unusual-authentication-behavior.md",
+      "label": "Ordered invalid-password failures followed by interactive success",
+      "table": "SigninLogs",
+      "required_fragments": [
+        "FailureTime < SuccessTime",
+        "FailureTime >= SuccessTime - 15m",
+        "FailureCount >= 5",
+        "Id",
+        "IsInteractive == true"
+      ],
+      "limit": "Does not model offline identity reset on other outcomes; join can be expensive."
+    },
+    {
+      "file": "auth-spray.kql",
+      "hunt": "auth",
+      "playbook": "hunts/unusual-authentication-behavior.md",
+      "label": "Fixed-bin multi-user password-spray candidate",
+      "table": "SigninLogs",
+      "required_fragments": [
+        "ResultType",
+        "count_distinct(UserKey)",
+        "bin(EventTime, 15m)",
+        "DistinctUsers >= 3",
+        "FailureEvents >= 6"
+      ],
+      "limit": "Fixed time bins can miss boundary-straddling patterns; not equivalent to sliding offline rule."
+    },
+    {
+      "file": "powershell-execution.kql",
+      "hunt": "powershell",
+      "playbook": "hunts/suspicious-powershell.md",
+      "label": "PowerShell or pwsh suspicious command-line pivot",
+      "table": "DeviceProcessEvents",
+      "required_fragments": [
+        "\"pwsh.exe\"",
+        "matches regex",
+        "RiskyParent",
+        "ReportId"
+      ],
+      "limit": "String matching does not decode payloads or verify process/signer identity."
+    },
+    {
+      "file": "lateral-execution-pivot.kql",
+      "hunt": "lateral",
+      "playbook": "hunts/lateral-movement.md",
+      "label": "Remote execution tool and command pivot",
+      "table": "DeviceProcessEvents",
+      "required_fragments": [
+        "CommandLower",
+        "DeviceName",
+        "ProcessCommandLine",
+        "ReportId"
+      ],
+      "limit": "No 3-source host/logon/execution correlation or destination-host/session proof."
+    },
+    {
+      "file": "persistence-autoruns.kql",
+      "hunt": "persistence",
+      "playbook": "hunts/persistence-mechanisms.md",
+      "label": "Registry autorun entries including direct executables",
+      "table": "DeviceRegistryEvents",
+      "required_fragments": [
+        "RegistryKey contains",
+        "RegistryValueData",
+        "ActionType",
+        "ReportId"
+      ],
+      "limit": "No validated service/task-creation coverage; ActionType values need in-portal review."
+    },
+    {
+      "file": "cloud-entra-changes.kql",
+      "hunt": "cloud",
+      "playbook": "hunts/cloud-account-compromise.md",
+      "label": "Successful high-interest Entra administrative changes",
+      "table": "AuditLogs",
+      "required_fragments": [
+        "tostring(Result) =~ \"success\"",
+        "\"Add member to role\"",
+        "\"Add member to role completed (PIM activation)\"",
+        "TargetResources",
+        "InitiatedBy"
+      ],
+      "limit": "Not an authorization verdict; PIM eligibility and tenant-specific operation names require follow-up."
+    },
+    {
+      "file": "egress-byte-volume.kql",
+      "hunt": "egress",
+      "playbook": "hunts/data-exfiltration-indicators.md",
+      "label": "Connector-dependent calendar-hour sent-byte volume",
+      "table": "CommonSecurityLog",
+      "required_fragments": [
+        "isnotnull(SentBytes)",
+        "sum(SentBytes)",
+        "bin(TimeGenerated, 1h)",
+        "ObservedSentBytes >= 500000000"
+      ],
+      "limit": "Not sliding 60-minute, not vetted for transfer direction, external destination, deduplication, or counter resets."
+    }
+  ]
+}

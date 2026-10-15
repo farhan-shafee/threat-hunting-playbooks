@@ -12,13 +12,40 @@ Identify potentially malicious PowerShell executions and prioritize events requi
 - Network connection telemetry from host
 
 ## SIEM Query Examples
+
+> **Status: Microsoft vendor-schema-reviewed static candidates, NOT executed in an authorized Sentinel/Defender tenant.**
+> These are not claimed equivalent to the synthetic Python detectors.
+
+### PowerShell or pwsh suspicious command-line pivot
+
+Source: [`queries/schema-reviewed/powershell-execution.kql`](../queries/schema-reviewed/powershell-execution.kql). Native table: `DeviceProcessEvents`.
+
 ```kql
+// DEFENDER XDR / DeviceProcessEvents: command-line and parent-process pivot.
+// Candidate text signals only: neither encoded execution nor compromise
+// is established without decoded content and corroborating context.
 DeviceProcessEvents
-| where FileName =~ "powershell.exe"
-| where ProcessCommandLine has_any ("-enc","EncodedCommand","FromBase64String","IEX","Invoke-Expression")
-| project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine, InitiatingProcessFileName
+| where Timestamp >= ago(1d)
+| where FileName in~ ("powershell.exe", "pwsh.exe")
+| where isnotempty(ProcessCommandLine)
+| extend CommandLower = tolower(ProcessCommandLine),
+    ParentLower = tolower(InitiatingProcessFileName)
+| extend EncodedFlag = CommandLower matches regex @"(^|\s)-(enc|encodedcommand)(\s|:|$)",
+    ScriptMarker = CommandLower contains "frombase64string"
+        or CommandLower contains "invoke-expression"
+        or CommandLower contains "iex("
+        or CommandLower contains "downloadstring("
+| where EncodedFlag or ScriptMarker
+| extend RiskyParent = ParentLower in ("winword.exe", "excel.exe",
+    "outlook.exe", "wscript.exe", "cscript.exe", "mshta.exe")
+| extend ReviewPriority = iff(RiskyParent, "high", "medium")
+| project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine,
+    InitiatingProcessFileName, EncodedFlag, ScriptMarker, RiskyParent,
+    ReviewPriority, ReportId
 | order by Timestamp desc
 ```
+
+**Important limitation:** String matching does not decode payloads or verify process/signer identity.
 
 ## Expected Results
 - Administrative automation activity (common benign)
@@ -49,4 +76,4 @@ DeviceProcessEvents
 
 ## Tuning Notes
 - Maintain allowlist of approved script hashes, signing certs, and admin hosts.
-- Alert only when suspicious arguments + risky parent process co-occur.
+- Treat risky parent process *plus* suspicious arguments as a higher-priority review candidate; suspicious arguments without that parent remain lower-priority candidates. This query does not publish an alert.

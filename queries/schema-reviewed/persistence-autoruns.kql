@@ -1,0 +1,14 @@
+// DEFENDER XDR / DeviceRegistryEvents: Windows autorun registry changes.
+// RegistryValueData is deliberately NOT filtered by script keywords;
+// direct unfamiliar executable paths must remain reviewable.
+// Does NOT detect all task or service creation; requires DeviceEvents/Windows logs.
+DeviceRegistryEvents
+| where Timestamp >= ago(1d)
+| where isnotempty(RegistryKey)
+| where RegistryKey contains @"\CurrentVersion\Run"
+    or RegistryKey contains @"\CurrentVersion\RunOnce"
+    or RegistryKey contains @"\Schedule\TaskCache"
+| project Timestamp, DeviceName, ActionType, RegistryKey,
+    RegistryValueName, RegistryValueData,
+    InitiatingProcessFileName, InitiatingProcessAccountName, ReportId
+| order by Timestamp desc

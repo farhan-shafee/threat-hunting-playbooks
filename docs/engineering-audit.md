@@ -47,6 +47,14 @@ They cannot measure real-world false-positive rate, bypass resistance, attacker 
 
 **Milestone 5 — Reviewer demo:** A 5-minute, zero-secret walkthrough: hypothesis → input → rule → finding → suppressed/benign example → rationale → reproducibility and limitations, with linked GitHub CI.
 
+## Phase 3 — Canonical KQL schema review
+
+Seven read-only query candidates were authored for six core hunts: two on Sentinel `SigninLogs`, two on Defender `DeviceProcessEvents`, one on Defender `DeviceRegistryEvents`, one on Sentinel `AuditLogs` and one on Sentinel `CommonSecurityLog`. Vendor-field subsets are explicitly listed in `queries/schema-reviewed/manifest.json`. Local Microsoft `Kusto.Language` 12.4.1 syntax and curated-schema semantic analysis reports zero diagnostics for all seven, and CI now enforces this alongside exact Markdown snippet synchronization. This is a **static source review only**, not a Microsoft tenant execution. Query performance, source/connector presence, actual field population, rule/Python behavioral parity, real-world false positives, and operational authorization remain unverified; see `docs/KQL_STATIC_VALIDATION.md` and `docs/LIVE_KQL_VALIDATION_GATE.md`. Legacy non-core KQL examples are excluded from the seven-query acceptance set.
+
+## PR #4 review correction
+
+Codex flagged that PowerShell `Expand-Archive` rejects a legitimately predownloaded Microsoft `.nupkg` archive. The hash-verified KQL parser wrapper now extracts through .NET `ZipFile`, which accepts both the original NuGet `.nupkg` and a renamed `.zip`. The normal default path also uses the authentic `.nupkg` extension. Local smoke tests run the seven-query static check using each archive form, without tenant authentication; CI uses the normal `.nupkg` path.
+
 ## Release gate
 Merge only after all unit tests, report reproduction checks, Markdown validation and Python compilation pass on Windows and Linux. Preserve committed evidence and note all unresolved doc-only/live-SIEM blockers.
 
