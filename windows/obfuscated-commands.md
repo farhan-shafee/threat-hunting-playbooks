@@ -1,5 +1,8 @@
 # 🪟 Windows Hunt: Obfuscated Command Execution
 
+> **Query status:** Historical, illustrative KQL only; not executed against a live SIEM.
+> Verify required data connector, table names, columns, and logic against your actual environment before use.
+
 ## 🎯 Objective  
 Detect adversaries hiding malicious intent through obfuscated command lines.
 
@@ -14,10 +17,11 @@ Detect adversaries hiding malicious intent through obfuscated command lines.
 ---
 
 ## 🧪 Hunt Query (KQL)
-kql
+```kql
 DeviceProcessEvents
 | where ProcessCommandLine has_any ("^", "+", "&", "%", "$(", "FromBase64String", "Invoke-Expression")
 | where FileName in ("powershell.exe", "cmd.exe", "wscript.exe", "cscript.exe")
+```
 
 ---
 

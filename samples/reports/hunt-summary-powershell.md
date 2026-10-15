@@ -1,21 +1,15 @@
-# Completed Hunt Summary: Suspicious PowerShell (Lab Example)
+# Archived Illustrative Hunt Narrative: PowerShell
 
-## Hunt Window
-2026-04-20 00:00 UTC to 2026-04-20 23:59 UTC
+> **Not reproduced from the old `powershell-sample.csv`.** Prior narrative counts and escalation claims are not supported by a matching fixture and should not be presented as measured outcomes.
 
-## Hypothesis Tested
-Encoded or obfuscated PowerShell usage may indicate malicious execution.
+## Hypothesis
+Encoded PowerShell launched by an unusual parent can indicate suspicious execution, but the same signals can occur in legitimate tooling.
 
-## Result
-- 17 total PowerShell events reviewed
-- 2 events triaged as suspicious
-- 1 escalated for deeper malware analysis in lab workflow
+## Analyst approach
+- Examine parent-child process context, command-line indicators, and authorized scripts.
+- Use a benign service automation control to challenge the heuristic.
+- Correlate endpoint network/file telemetry before concluding malicious activity.
+- Document the threshold and reason for manual review.
 
-## Why Escalated
-The escalated event combined encoded command usage, Office parent process, and outbound connection to rare destination.
-
-## Follow-up Actions
-- Add allowlist for known patch automation account.
-- Tighten query to prioritize risky parent-child chains.
-
-> This is a synthetic portfolio example, not a real production incident record.
+## Reproducible evidence
+Use the [current PowerShell synthetic case report](reproduced/powershell-v1.md), created from [fixture data](../logs/powershell-lab-v1.csv) by the tested offline evaluator.

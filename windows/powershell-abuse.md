@@ -1,5 +1,8 @@
 # 🪟 Windows Hunt: PowerShell Abuse  
 
+> **Query status:** Historical, illustrative KQL only; not executed against a live SIEM.
+> Verify required data connector, table names, columns, and logic against your actual environment before use.
+
 ## 🎯 Objective  
 Identify suspicious PowerShell activity that may indicate execution of malicious scripts, recon, credential theft, or lateral movement.
 
@@ -17,25 +20,28 @@ Identify suspicious PowerShell activity that may indicate execution of malicious
 ## 🧪 Hunt Queries (KQL)
 
 ### **1. Base64 Encoded Commands**
-kql
+```kql
 DeviceProcessEvents
 | where ProcessCommandLine contains "powershell"
 | where ProcessCommandLine contains "encodedcommand"
+```
 
 ---
 
 ### **2. Obfuscated Commands**
-kql
+```kql
 DeviceProcessEvents
 | where ProcessCommandLine has_any ("^", ">", "+", "Invoke-", "$(", "FromBase64String")
+```
 
 ---
 
 ### **3. Suspicious Parent Process**
-kql
+```kql
 DeviceProcessEvents
 | where FileName =~ "powershell.exe"
 | where InitiatingProcessFileName in ("WINWORD.EXE", "EXCEL.EXE", "wscript.exe", "cscript.exe")
+```
 
 ---
 

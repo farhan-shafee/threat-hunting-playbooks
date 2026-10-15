@@ -1,21 +1,15 @@
-# Completed Hunt Summary: Lateral Movement (Lab Example)
+# Illustrative Hunt Narrative: Lateral Movement
 
-## Hunt Window
-2026-04-22 00:00 UTC to 2026-04-22 23:59 UTC
+> **Not a completed or reproducible hunt.** This qualitative example has no corresponding fixture or executable evaluator in this repository. It does not assert that real hosts, incidents, or investigations were involved.
 
-## Hypothesis Tested
-If a compromised account is used for internal pivoting, remote execution artifacts and unusual host-to-host administration patterns should co-occur.
+## Hypothesis
+Unexpected remote administration from a workstation to sensitive assets may indicate unauthorized lateral movement.
 
-## Findings
-- 9 remote execution candidates from hunt query
-- 7 matched approved maintenance activity
-- 2 remained suspicious pending credential validation
+## Analyst approach
+- Verify the source and destination pair against approved administrative workflows.
+- Correlate remote logons, service/task creation, and process lineage.
+- Distinguish scheduled deployment tooling from unauthorized command execution.
+- Preserve UTC timestamps, identity context, and source evidence before escalation.
 
-## Analyst Decision
-Escalated 2 events because they originated from a non-standard admin workstation and targeted a privileged server segment.
-
-## Tuning Changes
-- Added approved jump host allowlist.
-- Added suppression for scheduled patching maintenance window.
-
-> Synthetic portfolio record for demonstration only.
+## Reproducibility gap
+This case awaits an explicitly documented synthetic network + host-auth + process fixture, reproducible correlation logic, and positive/negative tests. See [engineering roadmap](../../docs/engineering-audit.md).

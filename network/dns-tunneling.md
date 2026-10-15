@@ -1,5 +1,8 @@
 # 🌐 Network Hunt: DNS Tunneling Detection
 
+> **Query status:** Historical, illustrative KQL only; not executed against a live SIEM.
+> Verify required data connector, table names, columns, and logic against your actual environment before use.
+
 ---
 
 ## 🎯 Objective
@@ -19,27 +22,30 @@ Detect potential DNS tunneling activity used for covert C2 communication or data
 ## 🧪 Hunt Queries (KQL)
 
 ### **1. Long DNS Query Lengths**
-kql
+```kql
 DnsEvents
 | where QueryLength > 60
 | project Timestamp, DeviceName, QueryName, QueryType
+```
 
 ---
 
 ### **2. High-Frequency DNS Queries**
-kql
+```kql
 DnsEvents
 | summarize Count = count() by QueryName, DeviceName
 | where Count > 50
 | sort by Count desc
+```
 
 ---
 
 ### **3. Encoded / Base64-like Subdomain Patterns**
-kql
+```kql
 DnsEvents
 | where QueryName matches regex @"[A-Za-z0-9+/]{20,}"
 | project Timestamp, DeviceName, QueryName
+```
 
 ---
 

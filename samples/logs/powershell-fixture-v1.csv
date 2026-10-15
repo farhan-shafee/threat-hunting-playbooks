@@ -1,0 +1,6 @@
+Timestamp,DeviceName,AccountName,FileName,ProcessCommandLine,InitiatingProcessFileName
+2026-04-20T10:21:00Z,WKSTN-LAB-22,analyst,powershell.exe,"powershell.exe -NoProfile -enc SQBFAFgA",WINWORD.EXE
+2026-04-20T10:24:00Z,WKSTN-LAB-22,analyst,powershell.exe,powershell.exe Get-Process,explorer.exe
+2026-04-20T11:02:14Z,SRV-LAB-07,svc_patch,powershell.exe,powershell.exe -File C:\Scripts\Patch.ps1,services.exe
+2026-04-20T11:20:00Z,WKSTN-LAB-15,analyst,pwsh.exe,"pwsh.exe -NoProfile -Command [Convert]::FromBase64String('SQBFAFgA')",explorer.exe
+2026-04-20T12:01:00Z,WKSTN-LAB-44,guest,cmd.exe,cmd.exe /c echo hi,WINWORD.EXE
