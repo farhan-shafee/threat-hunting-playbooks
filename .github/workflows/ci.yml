@@ -27,6 +27,11 @@ jobs:
         run: python -m compileall -q huntlab scripts tests
       - name: Verify Markdown and core hunt structure
         run: python scripts/validate_playbooks.py
+      - name: Verify canonical KQL in all six core playbooks
+        run: python -B scripts/sync_kql_examples.py --check
+      - name: Validate KQL syntax and curated vendor schemas
+        shell: pwsh
+        run: ./scripts/validate_kql_schemas.ps1
       - name: Run offline regression tests
         run: python -m unittest discover -s tests -v
       - name: Verify deterministic evidence reports

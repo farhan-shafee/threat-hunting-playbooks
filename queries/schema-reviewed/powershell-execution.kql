@@ -1,0 +1,22 @@
+// DEFENDER XDR / DeviceProcessEvents: command-line and parent-process pivot.
+// Candidate text signals only: neither encoded execution nor compromise
+// is established without decoded content and corroborating context.
+DeviceProcessEvents
+| where Timestamp >= ago(1d)
+| where FileName in~ ("powershell.exe", "pwsh.exe")
+| where isnotempty(ProcessCommandLine)
+| extend CommandLower = tolower(ProcessCommandLine),
+    ParentLower = tolower(InitiatingProcessFileName)
+| extend EncodedFlag = CommandLower matches regex @"(^|\s)-(enc|encodedcommand)(\s|:|$)",
+    ScriptMarker = CommandLower contains "frombase64string"
+        or CommandLower contains "invoke-expression"
+        or CommandLower contains "iex("
+        or CommandLower contains "downloadstring("
+| where EncodedFlag or ScriptMarker
+| extend RiskyParent = ParentLower in ("winword.exe", "excel.exe",
+    "outlook.exe", "wscript.exe", "cscript.exe", "mshta.exe")
+| extend ReviewPriority = iff(RiskyParent, "high", "medium")
+| project Timestamp, DeviceName, AccountName, FileName, ProcessCommandLine,
+    InitiatingProcessFileName, EncodedFlag, ScriptMarker, RiskyParent,
+    ReviewPriority, ReportId
+| order by Timestamp desc

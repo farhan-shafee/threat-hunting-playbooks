@@ -1,0 +1,30 @@
+// SENTINEL / SigninLogs: strictly earlier interactive invalid-password failures
+// followed by a success for the same user and source IP. Read-only candidate.
+// NOT equivalent to the offline Python reset-state detector.
+let Logins =
+    SigninLogs
+    | where TimeGenerated >= ago(2d)
+    | where IsInteractive == true
+    | where isnotempty(Id) and isnotempty(UserPrincipalName) and isnotempty(IPAddress)
+    | extend UserKey = tolower(UserPrincipalName), Outcome = tostring(ResultType)
+    | where Outcome in ("50126", "0")
+    | project Id, EventTime = TimeGenerated, UserKey, IPAddress, Outcome
+    | summarize arg_max(EventTime, *) by Id;
+let Failed =
+    Logins
+    | where Outcome == "50126"
+    | project UserKey, IPAddress, FailureTime = EventTime, FailureId = Id;
+let Successful =
+    Logins
+    | where Outcome == "0" and EventTime >= ago(1d)
+    | project UserKey, IPAddress, SuccessTime = EventTime, SuccessId = Id;
+Successful
+| join kind=inner (Failed) on UserKey, IPAddress
+| where FailureTime < SuccessTime and FailureTime >= SuccessTime - 15m
+| summarize FailureCount = count(), FirstFailure = min(FailureTime),
+    LastFailure = max(FailureTime), FailureIds = make_set(FailureId, 32)
+    by UserKey, IPAddress, SuccessTime, SuccessId
+| where FailureCount >= 5
+| project SuccessTime, UserKey, IPAddress, FailureCount, FirstFailure,
+    LastFailure, SuccessId, FailureIds
+| order by SuccessTime desc

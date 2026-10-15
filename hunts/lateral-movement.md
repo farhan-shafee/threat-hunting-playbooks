@@ -12,12 +12,36 @@ Identify suspicious host-to-host movement and remote execution behavior.
 - Windows security events for remote logon/service creation
 
 ## SIEM Query Examples
+
+> **Status: Microsoft vendor-schema-reviewed static candidates, NOT executed in an authorized Sentinel/Defender tenant.**
+> These are not claimed equivalent to the synthetic Python detectors.
+
+### Remote execution tool and command pivot
+
+Source: [`queries/schema-reviewed/lateral-execution-pivot.kql`](../queries/schema-reviewed/lateral-execution-pivot.kql). Native table: `DeviceProcessEvents`.
+
 ```kql
+// DEFENDER XDR / DeviceProcessEvents: remote-tool invocation candidates.
+// NOT a validated connection -> logon -> execution correlation; this table
+// lacks reliable destination-host/session attribution for that chain.
 DeviceProcessEvents
-| where ProcessCommandLine has_any ("psexec", "wmic /node", "Invoke-Command", "Enter-PSSession", "schtasks /s")
-| project Timestamp, DeviceName, AccountName, ProcessCommandLine, InitiatingProcessFileName
+| where Timestamp >= ago(1d)
+| where isnotempty(ProcessCommandLine)
+| where FileName in~ ("psexec.exe", "wmic.exe", "schtasks.exe",
+    "powershell.exe", "pwsh.exe")
+| extend CommandLower = tolower(ProcessCommandLine)
+| where FileName =~ "psexec.exe"
+    or CommandLower contains "/node:"
+    or CommandLower contains "\\\\"
+    or CommandLower contains "/s "
+    or CommandLower contains "invoke-command"
+    or CommandLower contains "enter-pssession"
+| project Timestamp, DeviceName, AccountName, FileName,
+    ProcessCommandLine, InitiatingProcessFileName, ReportId
 | order by Timestamp desc
 ```
+
+**Important limitation:** No 3-source host/logon/execution correlation or destination-host/session proof.
 
 ## Expected Results
 - Legitimate remote admin actions by IT teams
@@ -48,4 +72,4 @@ DeviceProcessEvents
 
 ## Tuning Notes
 - Baseline normal admin source hosts.
-- Require multi-signal correlation (remote exec + unusual auth + new binary).
+- Treat this KQL only as a remote-command *pivot*. True three-sensor connection/logon/execution correlation requires a separately proven join and event mapping; the offline Python lab is not equivalent.

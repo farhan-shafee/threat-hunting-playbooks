@@ -1,0 +1,18 @@
+// DEFENDER XDR / DeviceProcessEvents: remote-tool invocation candidates.
+// NOT a validated connection -> logon -> execution correlation; this table
+// lacks reliable destination-host/session attribution for that chain.
+DeviceProcessEvents
+| where Timestamp >= ago(1d)
+| where isnotempty(ProcessCommandLine)
+| where FileName in~ ("psexec.exe", "wmic.exe", "schtasks.exe",
+    "powershell.exe", "pwsh.exe")
+| extend CommandLower = tolower(ProcessCommandLine)
+| where FileName =~ "psexec.exe"
+    or CommandLower contains "/node:"
+    or CommandLower contains "\\\\"
+    or CommandLower contains "/s "
+    or CommandLower contains "invoke-command"
+    or CommandLower contains "enter-pssession"
+| project Timestamp, DeviceName, AccountName, FileName,
+    ProcessCommandLine, InitiatingProcessFileName, ReportId
+| order by Timestamp desc
