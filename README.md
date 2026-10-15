@@ -36,22 +36,27 @@ No Docker, SIEM tenant, paid API, log collection agent, cloud subscription, or t
 
 ## What the evaluator does
 
-**Authentication:** From a synthetic `SigninLogs`-style CSV, distinguish invalid-password error `50126` from unrelated auth errors. Find (a) six or more failures spanning at least three identities from one IP in a 15-minute window and (b) five or more failures followed by success for one identity/IP within 15 minutes. Time order is enforced; success resets the sequence.
+**Authentication:** From a synthetic `SigninLogs`-style CSV, distinguish invalid-password error `50126` from unrelated auth errors. Find (a) six or more failures spanning at least three identities from one IP in an inclusive 15-minute window and (b) five or more failures with timestamps **strictly earlier** than success for one identity/IP, at most 15 minutes earlier. Success resets the sequence. Failures tied with success are discarded; CSV position never establishes their temporal order. Other outcomes reset the sequence conservatively.
 
 **PowerShell:** From `DeviceProcessEvents`-style CSV, examine executable, command-line indicators, and process parent; prioritize encoded/obfuscated execution when launched from an Office/script-host parent. Approved automation could still generate a review candidate.
 
-The evaluator refuses missing/duplicate columns, malformed rows, naive timestamps, oversized inputs, and unknown hunts. Reports omit raw command lines, record normalized input SHA-256, and use stable ordering. It does not decode or execute payloads.
+The evaluator refuses missing/duplicate columns, malformed rows, naive or out-of-range timestamps, oversized inputs, and unknown hunts. Reads are capped at the five-megabyte limit plus one byte. Every declared column must be structurally present; optional values may be empty. UTC evidence retains microseconds where present. It does not decode or execute payloads.
+
+JSON and Markdown evidence include schema/rule versions, effective parameters, normalized input SHA-256, event/finding counts, complete finding intervals, evidence record references, signals and review disposition. The CLI rejects output paths aliasing its input and replaces reports atomically. These controls establish reproducibility, **not cryptographic chain of custody**.
 
 ## Evidence and integrity
 
 - [Synthetic identity fixture](samples/logs/auth-lab-v1.csv) → [generated identity review](samples/reports/reproduced/auth-v1.md)
 - [Synthetic PowerShell fixture](samples/logs/powershell-lab-v1.csv) → [generated PowerShell review](samples/reports/reproduced/powershell-v1.md)
 - [Regression tests](tests/test_engine.py) test positive cases, benign noise, time boundaries, sorting, and schema failures.
+- [Independent expected results](tests/expected/auth-v1.json) and [PowerShell expectations](tests/expected/powershell-v1.json) are hand-authored contracts, not evaluator-generated snapshots. Correction tests cover timestamp ambiguity, input boundaries, output failures and report escaping.
 - [GitHub CI](.github/workflows/ci.yml) checks Python, Markdown, tests, and committed report reproducibility on Windows and Linux.
 - [Audit and engineering roadmap](docs/engineering-audit.md) records what is real, what is unverified, and next acceptance gates.
 - [Telemetry/query contract](docs/query-contract.md) explains vendor-specific schema assumptions.
 
 Older sample summaries in `samples/reports/` were **illustrative narratives** prepared before this reproducible evaluator; do not equate their counts with either new fixture. The `reproduced/` reports alone have automated input lineage.
+
+The Markdown validator checks **31 documents**, including six core hunts. Structural validation does not compile KQL. Required GitHub merge checks must be configured separately by the owner; see the [release safeguard configuration](docs/engineering-audit.md#release-safeguards-owner-action).
 
 ## Hunt methodology
 

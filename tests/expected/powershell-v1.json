@@ -1,0 +1,53 @@
+{
+  "result_schema_version": "1.0",
+  "rule_versions": {"PS-SUSPICIOUS-EXECUTION": "1.1.0"},
+  "effective_parameters": {
+    "PS-SUSPICIOUS-EXECUTION": {
+      "executable_names": ["powershell.exe", "pwsh.exe"],
+      "encoded_flag_pattern": "(?i)(?:^|\\s)-(?:enc|encodedcommand)(?=\\s|:|$)",
+      "payload_markers": ["frombase64string", "invoke-expression", "iex(", "downloadstring("],
+      "high_priority_parents": ["cscript.exe", "excel.exe", "mshta.exe", "outlook.exe", "winword.exe", "wscript.exe"]
+    }
+  },
+  "lab_scope": "synthetic offline telemetry; no live SIEM execution",
+  "hunt_id": "powershell",
+  "input_sha256_normalized_utf8": "51039dfadf48eefd0272dc8a169a1333757ffacbce0ef47e52d71b1139d341e9",
+  "events_evaluated": 6,
+  "findings_count": 3,
+  "time_window": "per process event",
+  "findings": [
+    {
+      "hunt_id": "powershell",
+      "rule_id": "PS-SUSPICIOUS-EXECUTION",
+      "severity": "high",
+      "entity": "WKSTN-22 | jdoe",
+      "first_seen_utc": "2026-04-20T10:21:00Z",
+      "last_seen_utc": "2026-04-20T10:21:00Z",
+      "evidence_records": [2],
+      "signals": ["encoded-command argument", "Office or script-host parent: winword.exe"],
+      "disposition": "review required; not confirmed compromise"
+    },
+    {
+      "hunt_id": "powershell",
+      "rule_id": "PS-SUSPICIOUS-EXECUTION",
+      "severity": "high",
+      "entity": "WKSTN-31 | analyst",
+      "first_seen_utc": "2026-04-20T10:30:00Z",
+      "last_seen_utc": "2026-04-20T10:30:00Z",
+      "evidence_records": [5],
+      "signals": ["script execution/encoding marker: iex(", "Office or script-host parent: excel.exe"],
+      "disposition": "review required; not confirmed compromise"
+    },
+    {
+      "hunt_id": "powershell",
+      "rule_id": "PS-SUSPICIOUS-EXECUTION",
+      "severity": "medium",
+      "entity": "SRV-07 | svc_patch",
+      "first_seen_utc": "2026-04-20T10:32:00Z",
+      "last_seen_utc": "2026-04-20T10:32:00Z",
+      "evidence_records": [7],
+      "signals": ["encoded-command argument"],
+      "disposition": "review required; not confirmed compromise"
+    }
+  ]
+}

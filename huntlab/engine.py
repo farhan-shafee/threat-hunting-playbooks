@@ -6,14 +6,16 @@ or proof of compromise. All thresholds are teaching parameters.
 from __future__ import annotations
 
 import csv
+from collections import Counter, deque
+from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import hashlib
 import io
+from itertools import groupby
 from pathlib import Path
 import re
 
-WINDOW = timedelta(minutes=15)
 MAX_INPUT_BYTES = 5_000_000
 MAX_RECORDS = 20_000
 
@@ -30,6 +32,37 @@ OFFICE_OR_SCRIPT_PARENTS = {
 }
 ENCODED_FLAG = re.compile(r"(?i)(?:^|\s)-(?:enc|encodedcommand)(?=\s|:|$)")
 PAYLOAD_MARKERS = ("frombase64string", "invoke-expression", "iex(", "downloadstring(")
+RULE_IDS = {
+    "auth": ("AUTH-FAILED-THEN-SUCCESS", "AUTH-SPRAY"),
+    "powershell": ("PS-SUSPICIOUS-EXECUTION",),
+}
+RULE_VERSIONS = {rule: "1.1.0" for rules in RULE_IDS.values() for rule in rules}
+RULE_PARAMETERS = {
+    "AUTH-FAILED-THEN-SUCCESS": {
+        "minimum_failures": 5,
+        "lookback_seconds": 900,
+        "lookback_inclusive": True,
+        "failure_result": "50126",
+        "success_result": "0",
+        "temporal_order": "strictly_earlier",
+        "timestamp_ties": "discard_failures_tied_with_success",
+        "other_outcomes": "reset_sequence",
+    },
+    "AUTH-SPRAY": {
+        "minimum_failures": 6,
+        "minimum_distinct_identities": 3,
+        "window_seconds": 900,
+        "window_inclusive": True,
+        "failure_result": "50126",
+        "maximum_findings_per_ip": 1,
+    },
+    "PS-SUSPICIOUS-EXECUTION": {
+        "executable_names": ["powershell.exe", "pwsh.exe"],
+        "encoded_flag_pattern": ENCODED_FLAG.pattern,
+        "payload_markers": list(PAYLOAD_MARKERS),
+        "high_priority_parents": sorted(OFFICE_OR_SCRIPT_PARENTS),
+    },
+}
 
 
 class HuntInputError(ValueError):
@@ -49,7 +82,7 @@ def _timestamp(raw: str, record: int, field: str) -> datetime:
         if value.tzinfo is None or value.utcoffset() is None:
             raise ValueError("timezone missing")
         return value.astimezone(timezone.utc)
-    except ValueError as exc:
+    except (ValueError, OverflowError) as exc:
         raise HuntInputError(
             f"record {record}: {field} must be timezone-aware ISO-8601"
         ) from exc
@@ -60,7 +93,8 @@ def load_csv(hunt_id: str, source: Path) -> tuple[list[Row], str]:
         raise HuntInputError(f"unknown hunt: {hunt_id}")
     if not source.is_file():
         raise HuntInputError(f"not a readable CSV file: {source}")
-    data = source.read_bytes()
+    with source.open("rb") as handle:
+        data = handle.read(MAX_INPUT_BYTES + 1)
     if not data or len(data) > MAX_INPUT_BYTES:
         raise HuntInputError("CSV is empty or exceeds the 5 MB lab input limit")
     try:
@@ -69,19 +103,19 @@ def load_csv(hunt_id: str, source: Path) -> tuple[list[Row], str]:
         raise HuntInputError("CSV must be UTF-8") from exc
     digest = hashlib.sha256(payload.encode("utf-8")).hexdigest()
     reader = csv.DictReader(io.StringIO(payload, newline=""), strict=True)
-    names = reader.fieldnames
-    if not names or len(names) != len(set(names)) or any(not h for h in names):
-        raise HuntInputError("CSV has missing or duplicate column names")
-    missing = set(SCHEMAS[hunt_id]) - set(names)
-    if missing:
-        raise HuntInputError(f"missing required columns: {', '.join(sorted(missing))}")
     time_key = "TimeGenerated" if hunt_id == "auth" else "Timestamp"
     rows: list[Row] = []
     try:
+        names = reader.fieldnames
+        if not names or len(names) != len(set(names)) or any(not h for h in names):
+            raise HuntInputError("CSV has missing or duplicate column names")
+        missing = set(SCHEMAS[hunt_id]) - set(names)
+        if missing:
+            raise HuntInputError(f"missing required columns: {', '.join(sorted(missing))}")
         for ordinal, item in enumerate(reader, start=2):
             if ordinal > MAX_RECORDS + 1:
                 raise HuntInputError("CSV exceeds the 20,000-record lab limit")
-            if None in item or any(item.get(key) is None for key in SCHEMAS[hunt_id]):
+            if None in item or any(value is None for value in item.values()):
                 raise HuntInputError(f"record {ordinal}: malformed column count")
             fields = {key: (val or "").strip() for key, val in item.items()}
             if any(not fields[key] for key in SCHEMAS[hunt_id]):
@@ -99,7 +133,7 @@ def load_csv(hunt_id: str, source: Path) -> tuple[list[Row], str]:
 
 
 def _when(value: datetime) -> str:
-    return value.isoformat(timespec="seconds").replace("+00:00", "Z")
+    return value.isoformat().replace("+00:00", "Z")
 
 
 def _finding(
@@ -126,51 +160,65 @@ def _finding(
 
 def _auth_findings(rows: list[Row]) -> list[dict]:
     results: list[dict] = []
+    follow = RULE_PARAMETERS["AUTH-FAILED-THEN-SUCCESS"]
+    spray = RULE_PARAMETERS["AUTH-SPRAY"]
+    lookback = timedelta(seconds=follow["lookback_seconds"])
+    spray_window = timedelta(seconds=spray["window_seconds"])
     per_identity: dict[tuple[str, str], list[Row]] = {}
     per_ip_failures: dict[str, list[Row]] = {}
     for row in rows:
         f = row.fields
         per_identity.setdefault((f["IPAddress"], f["UserPrincipalName"]), []).append(row)
-        if f["ResultType"] == "50126":
+        if f["ResultType"] == spray["failure_result"]:
             per_ip_failures.setdefault(f["IPAddress"], []).append(row)
 
-    # Brute-force follow-through: 5 invalid-password failures, then a success,
-    # same IP + identity, strictly within 15 minutes, with no earlier success
-    # in between. Other error codes are not treated as password failures.
+    # A success uses only strictly earlier failures in the inclusive lookback.
+    # Timestamp groups avoid inferring an order from CSV position: successes
+    # discard tied failures, and unrelated outcomes reset the entire group.
     for (ip, user), events in sorted(per_identity.items()):
-        failures: list[Row] = []
-        for row in events:
-            code = row.fields["ResultType"]
-            if code == "50126":
-                failures = [e for e in failures if row.at - e.at <= WINDOW]
-                failures.append(row)
-            elif code == "0":
-                nearby = [e for e in failures if row.at - e.at <= WINDOW]
-                if len(nearby) >= 5:
+        failures: deque[Row] = deque()
+        for at, same_time in groupby(events, key=lambda event: event.at):
+            group = list(same_time)
+            codes = {event.fields["ResultType"] for event in group}
+            if codes - {follow["failure_result"], follow["success_result"]}:
+                failures.clear()
+                continue
+            while failures and at - failures[0].at > lookback:
+                failures.popleft()
+            successes = [event for event in group
+                         if event.fields["ResultType"] == follow["success_result"]]
+            if successes:
+                if len(failures) >= follow["minimum_failures"]:
                     results.append(_finding(
                         "auth", "AUTH-FAILED-THEN-SUCCESS", "high",
-                        f"{user} | {ip}", nearby + [row],
-                        [f"{len(nearby)} invalid-password failures before success",
+                        f"{user} | {ip}", list(failures) + successes,
+                        [f"{len(failures)} invalid-password failures before success",
                          "same identity and source IP within 15 minutes"],
                     ))
-                failures = []
+                failures.clear()
             else:
-                failures = []  # MFA and unrelated errors break this sequence
+                failures.extend(group)
 
-    # Password spray: >=6 invalid-password failures involving >=3 distinct
-    # users from one source IP in one 15-minute window. One finding/IP.
+    # Evaluate the complete timestamp group at each window boundary so tied
+    # CSV permutations cannot change which failures support the first finding.
     for ip, failures in sorted(per_ip_failures.items()):
-        left = 0
-        for right, row in enumerate(failures):
-            while row.at - failures[left].at > WINDOW:
-                left += 1
-            window = failures[left:right + 1]
-            distinct = {e.fields["UserPrincipalName"] for e in window}
-            if len(window) >= 6 and len(distinct) >= 3:
+        window: deque[Row] = deque()
+        identities: Counter[str] = Counter()
+        for at, same_time in groupby(failures, key=lambda event: event.at):
+            while window and at - window[0].at > spray_window:
+                identity = window.popleft().fields["UserPrincipalName"]
+                identities[identity] -= 1
+                if not identities[identity]:
+                    del identities[identity]
+            for row in same_time:
+                window.append(row)
+                identities[row.fields["UserPrincipalName"]] += 1
+            if (len(window) >= spray["minimum_failures"]
+                    and len(identities) >= spray["minimum_distinct_identities"]):
                 results.append(_finding(
-                    "auth", "AUTH-SPRAY", "medium", ip, window,
+                    "auth", "AUTH-SPRAY", "medium", ip, list(window),
                     [f"{len(window)} invalid-password failures",
-                     f"{len(distinct)} distinct identities within 15 minutes"],
+                     f"{len(identities)} distinct identities within 15 minutes"],
                 ))
                 break
     return results
@@ -178,15 +226,16 @@ def _auth_findings(rows: list[Row]) -> list[dict]:
 
 def _powershell_findings(rows: list[Row]) -> list[dict]:
     results: list[dict] = []
+    parameters = RULE_PARAMETERS["PS-SUSPICIOUS-EXECUTION"]
     for row in rows:
         f = row.fields
-        if f["FileName"].lower() not in {"powershell.exe", "pwsh.exe"}:
+        if f["FileName"].lower() not in parameters["executable_names"]:
             continue
         command = f["ProcessCommandLine"].lower()
         parent = f["InitiatingProcessFileName"].lower()
         encoded = bool(ENCODED_FLAG.search(command))
-        markers = [marker for marker in PAYLOAD_MARKERS if marker in command]
-        risky_parent = parent in OFFICE_OR_SCRIPT_PARENTS
+        markers = [marker for marker in parameters["payload_markers"] if marker in command]
+        risky_parent = parent in parameters["high_priority_parents"]
         if not encoded and not markers:
             continue
         signals: list[str] = []
@@ -212,10 +261,16 @@ def run_hunt(hunt_id: str, source: str | Path) -> dict:
     )
     findings.sort(
         key=lambda finding: (
-            finding["first_seen_utc"], finding["rule_id"], finding["entity"],
+            datetime.fromisoformat(finding["first_seen_utc"].replace("Z", "+00:00")),
+            finding["rule_id"], finding["entity"],
         )
     )
     return {
+        "result_schema_version": "1.0",
+        "rule_versions": {rule: RULE_VERSIONS[rule] for rule in RULE_IDS[hunt_id]},
+        "effective_parameters": deepcopy({
+            rule: RULE_PARAMETERS[rule] for rule in RULE_IDS[hunt_id]
+        }),
         "lab_scope": "synthetic offline telemetry; no live SIEM execution",
         "hunt_id": hunt_id,
         "input_sha256_normalized_utf8": digest,

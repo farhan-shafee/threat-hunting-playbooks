@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import argparse
+import json
 from pathlib import Path
+import string
 import sys
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -17,36 +19,79 @@ CASES = {
 
 
 def table_cell(value: object) -> str:
-    """Escape untrusted text before placing it inside a Markdown table."""
-    return str(value).replace("|", r"\|").replace("\n", " ").replace("\r", " ")
+    """Render untrusted text literally, without creating Markdown or HTML.
+
+    CommonMark recognizes syntax before decoding character references. Encode
+    input backslashes too, so they cannot cancel the generated table-pipe escape.
+    Control characters stay recoverable in source without creating table rows.
+    """
+    # Include URL/email punctuation: GFM can autolink even inside otherwise
+    # escaped link syntax if a raw scheme, www. prefix, or address survives.
+    syntax = set(string.punctuation)
+    return "".join(
+        r"\|" if character == "|" else
+        f"&#{ord(character)};" if character in syntax or ord(character) < 32
+        or ord(character) == 127 else character
+        for character in str(value)
+    )
 
 
 def render(report: dict) -> str:
-    hunt = report["hunt_id"]
+    hunt = table_cell(report["hunt_id"])
+    configuration = json.dumps({
+        "rule_versions": report["rule_versions"],
+        "effective_parameters": report["effective_parameters"],
+    }, indent=2, sort_keys=True, ensure_ascii=True)
     lines = [
         f"# Reproduced synthetic hunt: {hunt}",
         "",
         "> Generated entirely from the committed synthetic CSV by",
         "> `python scripts/render_reports.py`. Not a production incident.",
         "",
-        f"- Hunt: `{hunt}`",
-        f"- Input events: **{report['events_evaluated']}**",
-        f"- Review candidates: **{report['findings_count']}**",
-        f"- Input SHA-256 (normalized UTF-8): `{report['input_sha256_normalized_utf8']}`",
-        f"- Window: {report['time_window']}",
+        f"- Result schema version: {table_cell(report['result_schema_version'])}",
+        f"- Hunt: {hunt}",
+        f"- Scope: {table_cell(report['lab_scope'])}",
+        f"- Input events: **{table_cell(report['events_evaluated'])}**",
+        f"- Review candidates: **{table_cell(report['findings_count'])}**",
+        f"- Input SHA-256 (normalized UTF-8): {table_cell(report['input_sha256_normalized_utf8'])}",
+        f"- Window: {table_cell(report['time_window'])}",
+        "",
+        "## Rule versions and effective parameters",
+        "",
+        "```json",
+        configuration,
+        "```",
         "",
         "## Review candidates",
         "",
-        "| Rule | Severity | Entity | First seen (UTC) | Evidence records |",
-        "|---|---|---|---|---|",
+        "| Candidate | Rule | Severity | Entity | First seen (UTC) | Last seen (UTC) | Evidence records | Disposition |",
+        "|---|---|---|---|---|---|---|---|",
     ]
-    for f in report["findings"]:
-        lines.append(
-            f"| {table_cell(f['rule_id'])} | {table_cell(f['severity'])} | {table_cell(f['entity'])} | "
-            f"{table_cell(f['first_seen_utc'])} | {', '.join(map(str, f['evidence_records']))} |"
-        )
+    for candidate, finding in enumerate(report["findings"], start=1):
+        cells = [
+            candidate, finding["rule_id"], finding["severity"], finding["entity"],
+            finding["first_seen_utc"], finding["last_seen_utc"],
+            ", ".join(map(str, finding["evidence_records"])), finding["disposition"],
+        ]
+        lines.append("| " + " | ".join(map(table_cell, cells)) + " |")
     if not report["findings"]:
-        lines.append("| None | — | — | — | — |")
+        lines.append("| None | — | — | — | — | — | — | — |")
+    lines += [
+        "",
+        "## Candidate rationale",
+        "",
+        "Each row preserves one evaluated signal; candidate numbers refer to the table above.",
+        "",
+        "| Candidate | Rule | Evaluated signal |",
+        "|---|---|---|",
+    ]
+    for candidate, finding in enumerate(report["findings"], start=1):
+        for signal in finding["signals"]:
+            lines.append("| " + " | ".join(map(table_cell, [
+                candidate, finding["rule_id"], signal,
+            ])) + " |")
+    if not report["findings"]:
+        lines.append("| None | — | — |")
     lines += [
         "",
         "## Interpretation and limits",
@@ -56,6 +101,8 @@ def render(report: dict) -> str:
         "- The Python evaluator is not a KQL execution engine; SIEM queries must be",
         "  verified against the target platform's actual schema and live configuration.",
         "- Offline fixture tests cannot establish real-world detection performance.",
+        "- Untrusted values are literal text. Control characters are preserved as",
+        "  numeric character references in the Markdown source; no raw command lines are included.",
         "",
     ]
     return "\n".join(lines)

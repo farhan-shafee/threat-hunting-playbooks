@@ -22,7 +22,7 @@
 - Authentication: source IP spray plus per-user failure→success rules, with distinct users and bounded windows.
 - PowerShell: encoded/inline execution markers, risky Office/script parent context, high/medium prioritization.
 - Synthetic reference fixtures, generated reports and regression tests with false-positive and malformed-input controls.
-- Fail-closed CI: Markdown structure, Python compilation, tests, generated report drift.
+- CI checks Markdown structure, Python compilation, tests and generated report drift. GitHub merge enforcement is a separate owner configuration.
 
 ### What these tests do **not** prove
 They cannot measure real-world false-positive rate, bypass resistance, attacker coverage, tenant compatibility, or detection effectiveness under adversarial conditions. A high severity in this demo means **prioritize review**, not “compromised”.
@@ -39,3 +39,34 @@ They cannot measure real-world false-positive rate, bypass resistance, attacker 
 
 ## Release gate
 Merge only after all unit tests, report reproduction checks, Markdown validation and Python compilation pass on Windows and Linux. Preserve committed evidence and note all unresolved doc-only/live-SIEM blockers.
+
+## Focused PR #2 correction pass
+
+The independent review examined feature commit `4af7f9a2cd2a4d9cabcea790ed922966cc49e595`. This correction keeps the same two supported hunts and unchanged synthetic CSV inputs.
+
+- Failure-before-success claims now require strictly earlier failure timestamps. Timestamp groups remove CSV-order inference; the 15-minute lookback remains inclusive. Tied failures are discarded at success, and unrelated outcomes reset conservatively.
+- Fractional UTC timestamps retain microsecond precision, with chronological finding ordering and whole-second fixture compatibility.
+- CSV header errors and UTC overflows become controlled input errors. All declared columns have enforced row width; optional blank values remain allowed. Reads and record counts have explicit inclusive limits.
+- JSON output rejects input aliases and uses same-directory atomic replacement. Failure tests protect existing input/output bytes and verify temporary-file cleanup. Markdown treats telemetry as literal text.
+- Schema version, rule versions and effective parameters accompany complete candidate intervals, signals, evidence references and review disposition in JSON and Markdown.
+- Independently hand-authored expected JSON protects the full evidence contract. Generated Markdown is reproduced from unchanged CSVs; its expanded provenance and rationale explain the legitimate report changes.
+- Validation checks 31 Markdown documents, not 32. This is a structure check, not live KQL validation. No new dependencies, credentials, hunts or containment capabilities were added.
+
+Known KQL issues remain outside this correction: undeclared DNS aliases, unsupported default software-change table assumptions, incomplete role-operation selectors, fixed-bin authentication aggregation and case-sensitive parent lists. All remain unverified reference material; offline tests do not promote them to executable detections.
+
+## Release safeguards (owner action)
+
+Read-only GitHub inspection found `main` unprotected, no required status checks and no effective ruleset. No repository-wide settings were changed. Passing workflow runs alone do not enforce the release gate.
+
+The smallest proposed branch protection for `main` requires these exact GitHub Actions contexts:
+
+- `Offline evidence (Windows/Linux, Python matrix) (ubuntu-latest, 3.11)`
+- `Offline evidence (Windows/Linux, Python matrix) (ubuntu-latest, 3.13)`
+- `Offline evidence (Windows/Linux, Python matrix) (windows-latest, 3.11)`
+- `Offline evidence (Windows/Linux, Python matrix) (windows-latest, 3.13)`
+
+Require up-to-date branches (`strict: true`), conversation resolution (`required_conversation_resolution: true`) and apply checks to administrators (`enforce_admins: true`). Keep force pushes and deletions disabled. An equivalent active ruleset can require pull requests, these checks and resolved review threads. Additional mandatory human approval is a separate owner policy, not necessary to the minimum CI gate.
+
+Owner authorization and administrative access are needed to apply and verify this configuration. Until enforced, the release safeguard remains an owner-action blocker even when the correction's technical checks pass. This PR must not be merged automatically.
+
+Action runtime deprecation warnings and mutable action tags remain maintenance items; private vulnerability reporting is disabled and needs an owner-selected reporting route. None of these observations changes the synthetic/offline scope.

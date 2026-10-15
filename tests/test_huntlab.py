@@ -185,7 +185,8 @@ class HuntLabTests(unittest.TestCase):
 
         report = run_hunt("auth", SAMPLES / "auth-lab-v1.csv")
         markdown = render(report)
-        self.assertIn("admin@lab.local \\| 203.0.113.44", markdown)
+        # Literal character references also prevent GFM email/URL autolinks.
+        self.assertIn("admin&#64;lab&#46;local \\| 203&#46;0&#46;113&#46;44", markdown)
         self.assertIn("\n## Interpretation and limits\n", markdown)
 
     def test_cli_invalid_input_nonzero(self):
