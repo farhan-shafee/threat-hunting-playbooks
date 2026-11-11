@@ -88,3 +88,7 @@ Require up-to-date branches (`strict: true`), conversation resolution (`required
 Owner authorization and administrative access are needed to apply and verify this configuration. Until enforced, the release safeguard remains an owner-action blocker even when the correction's technical checks pass. This PR must not be merged automatically.
 
 Action runtime deprecation warnings and mutable action tags remain maintenance items; private vulnerability reporting is disabled and needs an owner-selected reporting route. None of these observations changes the synthetic/offline scope.
+
+## Offline CI supply-chain guard (November 2026)
+
+The existing four offline CI check names are retained. GitHub Actions now use upstream-tag-verified SHA pins for `actions/checkout` v7.0.1 and `actions/setup-python` v7.1.0, and checkout does not persist credentials. `scripts/check_ci_supply_chain.py` and `tests/test_ci_supply_chain.py` enforce and negatively test this narrow review-controlled workflow contract. It rejects action-reference drift, additional actions, write permissions, privileged triggers, credential persistence and secret references. The guard is not a pre-execution sandbox or proof of supply-chain integrity. No synthetic hunting, KQL, captured ADX evidence, or live-tenant authorization contract was modified.
