@@ -15,7 +15,7 @@ EXPECTED = {
     "actions/checkout": "3d3c42e5aac5ba805825da76410c181273ba90b1",  # v7.0.1
     "actions/setup-python": "6d4fd22b20465ccc0f7354476588e8df7c9ca0e0",  # v7.1.0
 }
-ACTION = re.compile(r"(?m)^[ \t]*-[ \t]+uses:[ \t]+([^#\s]+)")
+ACTION = re.compile(r"(?m)^[ \t]*(?:-[ \t]+)?uses:[ \t]+([^#\s]+)")
 CHECKOUT_WITH = re.compile(
     r"(?m)^      - uses: actions/checkout@[0-9a-f]{40}[^\n]*\n"
     r"        with:\n          persist-credentials: false(?:\n|$)"
@@ -33,6 +33,9 @@ def verify_workflow(text: str) -> list[str]:
         issues.append("checkout must explicitly disable credential persistence")
     if not re.search(r"(?m)^permissions:\n  contents: read[ \t]*$", text):
         issues.append("workflow must declare read-only contents permission")
+    permission_headers = re.findall(r"(?m)^([ \t]*)permissions:[ \t]*([^\r\n]*)$", text)
+    if permission_headers != [("", "")]:
+        issues.append("additional or inline permission overrides are prohibited")
     if re.search(r"(?m)^[ \t]+[a-z-]+:[ \t]+write[ \t]*$", text) or "write-all" in text:
         issues.append("workflow must not request write-scoped permissions")
     if re.search(r"\b(?:pull_request_target|workflow_run)\b", text):

@@ -28,6 +28,15 @@ class CISupplyChainTests(unittest.TestCase):
         )
         self.assertTrue(verify_workflow(candidate))
 
+    def test_named_step_external_action_is_rejected(self):
+        candidate = self.workflow.replace(
+            "      - name: Compile code without live connections",
+            "      - name: Unexpected named action\n"
+            "        uses: untrusted/third-party@main\n"
+            "      - name: Compile code without live connections",
+        )
+        self.assertTrue(verify_workflow(candidate))
+
     def test_unknown_action_commit_is_rejected(self):
         candidate = self.workflow.replace(
             "6d4fd22b20465ccc0f7354476588e8df7c9ca0e0", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -42,6 +51,18 @@ class CISupplyChainTests(unittest.TestCase):
     def test_write_permissions_are_rejected(self):
         self.assertTrue(verify_workflow(self.workflow.replace("contents: read", "contents: write")))
         self.assertTrue(verify_workflow(self.workflow + "\n    permissions:\n      id-token: write\n"))
+
+    def test_inline_job_permissions_override_is_rejected(self):
+        candidate = self.workflow.replace(
+            "    steps:\n", "    permissions: {contents: write}\n    steps:\n"
+        )
+        self.assertTrue(verify_workflow(candidate))
+
+    def test_job_level_permission_block_override_is_rejected(self):
+        candidate = self.workflow.replace(
+            "    steps:\n", "    permissions:\n      contents: write\n    steps:\n"
+        )
+        self.assertTrue(verify_workflow(candidate))
 
     def test_privileged_events_are_rejected(self):
         self.assertTrue(verify_workflow(self.workflow.replace("  pull_request:", "  pull_request_target:")))
