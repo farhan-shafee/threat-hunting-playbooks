@@ -6,6 +6,7 @@ verification. This is not a workflow sandbox or proof of supply-chain trust.
 """
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 import re
 import sys
@@ -15,6 +16,8 @@ EXPECTED = {
     "actions/checkout": "3d3c42e5aac5ba805825da76410c181273ba90b1",  # v7.0.1
     "actions/setup-python": "6d4fd22b20465ccc0f7354476588e8df7c9ca0e0",  # v7.1.0
 }
+# SHA-256 of the exact approved workflow text with LF newlines on every platform.
+APPROVED_WORKFLOW_SHA256 = "8207160a0e828fcd84b5c21ae938981eeb435e2131498d3dcbdfd9a687b70150"
 ACTION = re.compile(r"(?m)^[ \t]*(?:-[ \t]+)?uses:[ \t]+([^#\s]+)")
 CHECKOUT_WITH = re.compile(
     r"(?m)^      - uses: actions/checkout@[0-9a-f]{40}[^\n]*\n"
@@ -25,6 +28,9 @@ CHECKOUT_WITH = re.compile(
 def verify_workflow(text: str) -> list[str]:
     """Check this repository's small, review-controlled workflow contract."""
     issues: list[str] = []
+    text = text.replace("\r\n", "\n")
+    if hashlib.sha256(text.encode("utf-8")).hexdigest() != APPROVED_WORKFLOW_SHA256:
+        issues.append("workflow differs from the exact reviewed content; update the digest with review")
     refs = ACTION.findall(text)
     expected = [f"{name}@{sha}" for name, sha in EXPECTED.items()]
     if refs != expected:

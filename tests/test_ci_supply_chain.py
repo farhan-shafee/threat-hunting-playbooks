@@ -37,6 +37,14 @@ class CISupplyChainTests(unittest.TestCase):
         )
         self.assertTrue(verify_workflow(candidate))
 
+    def test_flow_style_external_action_is_rejected(self):
+        candidate = self.workflow.replace(
+            "      - name: Compile code without live connections",
+            "      - {uses: \"untrusted/third-party@main\"}\n"
+            "      - name: Compile code without live connections",
+        )
+        self.assertTrue(verify_workflow(candidate))
+
     def test_unknown_action_commit_is_rejected(self):
         candidate = self.workflow.replace(
             "6d4fd22b20465ccc0f7354476588e8df7c9ca0e0", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
@@ -64,9 +72,22 @@ class CISupplyChainTests(unittest.TestCase):
         )
         self.assertTrue(verify_workflow(candidate))
 
+    def test_commented_write_permissions_are_rejected(self):
+        candidate = self.workflow.replace(
+            "  contents: read\n", "  contents: read\n  issues: write # manage issue reports\n"
+        )
+        self.assertTrue(verify_workflow(candidate))
+
     def test_privileged_events_are_rejected(self):
         self.assertTrue(verify_workflow(self.workflow.replace("  pull_request:", "  pull_request_target:")))
         self.assertTrue(verify_workflow(self.workflow + "\n  workflow_run:\n"))
+
+    def test_unreviewed_workflow_change_requires_digest_update(self):
+        candidate = self.workflow + "\n# change requiring reviewed digest update\n"
+        self.assertTrue(verify_workflow(candidate))
+
+    def test_identical_crlf_workflow_is_accepted(self):
+        self.assertEqual(verify_workflow(self.workflow.replace("\n", "\r\n")), [])
 
     def test_secret_usage_is_rejected(self):
         candidate = self.workflow + "\n        env:\n          ACCESS: " + "$" + "{{ secrets.API_KEY }}\n"
