@@ -1,16 +1,18 @@
 # Engineering Audit and Upgrade Roadmap
 
-**Audited baseline:** `main` at `6d8e7f53ddc1633fa5e4fd1ad84943afe8d60bcd` (April 29, 2026).
+> **Accepted scope (November 2026):** Six deterministic offline Python hunts and reports; seven source-reviewed KQL candidates validated with temporary synthetic `datatable` fixtures in Azure Data Explorer, including seven corrected assertions observed PASS in manually transcribed GUI receipts. The November 11 PR #6 closeout recorded **189 local Python tests** and **four successful GitHub CI matrix jobs**, with immutable external Action commit pins and read-only workflow permissions. **No native Sentinel/Defender tenant execution, real-world detection-effectiveness metrics, or live incident-response automation is established.** For authoritative current scope and remaining gates, see [README](../README.md), [synthetic ADX evidence](ADX_SYNTHETIC_EXECUTION.md), and [native validation gate](LIVE_KQL_VALIDATION_GATE.md). This document preserves dated engineering-audit history below.
 
-## Current release context and Phase 2 implementation
+**Historical audited baseline:** `main` at `6d8e7f53ddc1633fa5e4fd1ad84943afe8d60bcd` (April 29, 2026).
+
+## Historical Phase 2 acceptance and corrections
 
 PR #2 was merged as commit `26d35f5330f9b0587da39d4215e9cb3f8ea85b48` after 94 tests and Windows/Linux CI passed. The previously noted administrative **main-branch protection gap is now resolved**: four named matrix checks are required, strict up-to-date branch checking is enabled, discussion resolution is required, administrators are subject to the rules, and force pushes/deletions are disabled. Statements further below about missing protection are historical audit findings, **not current repository status**.
 
-Phase 2 adds four bounded, synthetic, deterministic evidence hunts on a new feature branch: strictly ordered connection→logon→execution correlation; unapproved persistence changes and deletion/recreation; completed cloud-admin/access-key changes; and observed outbound bytes with conservative cumulative/delta accounting. Input-only SHA-256, structured candidate evidence, duplicate-ID suppression and explicit unknown-counter warnings are recorded. See [PHASE2_HUNTS.md](PHASE2_HUNTS.md) for the schemas, confirmed behavior, negative controls, and limitations.
+Phase 2 added four bounded, synthetic, deterministic evidence hunts in now-merged feature work: strictly ordered connection→logon→execution correlation; unapproved persistence changes and deletion/recreation; completed cloud-admin/access-key changes; and observed outbound bytes with conservative cumulative/delta accounting. Input-only SHA-256, structured candidate evidence, duplicate-ID suppression and explicit unknown-counter warnings are recorded. See [PHASE2_HUNTS.md](PHASE2_HUNTS.md) for the schemas, confirmed behavior, negative controls, and limitations.
 
 **Independent PR #3 review and correction:** Codex identified two evidence-semantics issues: tied persistence changes could consume deletions according to CSV order, and cumulative byte increments were attributed wholly to the later timestamp even if measured across more than an hour. The focused correction groups persistence actions by timestamp, enforces strictly later updates, and accounts for the *entire* cumulative observation interval in each rolling hour using an earliest-start-time heap. Both affected rule versions advance to `1.0.1`. Independent adversarial regression tests cover order permutations, inclusive microsecond boundaries, interleaved sessions and overlong gaps. Preserve the generated reports and require GitHub CI plus review-thread resolution before merge.
 
-**Not yet established:** KQL compilation or equivalence, real sensor coverage, measured production detection efficacy, true unauthorized-change validation, forensic chain of custody, or actual incident-response operations. The expanded offline scope is not evidence of those capabilities.
+**Not established at the Phase 2 milestone:** KQL compilation or equivalence, real sensor coverage, measured production detection efficacy, true unauthorized-change validation, forensic chain of custody, or actual incident-response operations. Later static KQL checks and synthetic ADX execution are documented below; these are not native Sentinel/Defender tenant tests or evidence of real-world efficacy.
 
 ## Baseline findings (before this feature branch)
 
@@ -37,7 +39,7 @@ Phase 2 adds four bounded, synthetic, deterministic evidence hunts on a new feat
 ### What these tests do **not** prove
 They cannot measure real-world false-positive rate, bypass resistance, attacker coverage, tenant compatibility, or detection effectiveness under adversarial conditions. A high severity in this demo means **prioritize review**, not “compromised”.
 
-## Next acceptance gates (not implemented in this milestone)
+## Historical follow-on gates proposed after Milestone 1
 
 **Milestone 2 — Sensor-specific hardening:** Treat all remaining Windows/network/cloud historical examples as unverified until their table schema and ATT&CK claims are reviewed. Supply source-specific corpus, query contracts, operator semantics tests, and fixture-backed analyst outcomes. Do not call markdown rendering a live KQL test.
 
@@ -85,9 +87,9 @@ The smallest proposed branch protection for `main` requires these exact GitHub A
 
 Require up-to-date branches (`strict: true`), conversation resolution (`required_conversation_resolution: true`) and apply checks to administrators (`enforce_admins: true`). Keep force pushes and deletions disabled. An equivalent active ruleset can require pull requests, these checks and resolved review threads. Additional mandatory human approval is a separate owner policy, not necessary to the minimum CI gate.
 
-Owner authorization and administrative access are needed to apply and verify this configuration. Until enforced, the release safeguard remains an owner-action blocker even when the correction's technical checks pass. This PR must not be merged automatically.
+**Historical owner-action hold (subsequently resolved):** Authorization and administrative access were needed to apply and verify the required protection. At that earlier stage passing CI did not lift the merge hold; the November 2026 status below documents the subsequently enforced protection.
 
-Action runtime deprecation warnings and mutable action tags remain maintenance items; private vulnerability reporting is disabled and needs an owner-selected reporting route. None of these observations changes the synthetic/offline scope.
+The earlier audit flagged action runtime deprecation warnings and mutable action tags; the immutable-action remediation is documented in the November 2026 section below. Private vulnerability reporting was disabled when inspected and requires a fresh settings check before being described as current. None of these observations changes the synthetic/offline scope.
 
 ## Offline CI supply-chain guard (November 2026)
 
